@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:decimal/decimal.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -1322,6 +1320,160 @@ void main() {
       expect(secureStore.writes, 19);
       expect(secureStore.reads, 32);
       expect(secureStore.deletes, 12);
+
+      verifyNoMoreInteractions(client);
+      verifyNoMoreInteractions(cachedClient);
+      verifyNoMoreInteractions(priceAPI);
+    });
+
+    test("prepareSend succeeds", () async {
+      when(client?.getServerFeatures()).thenAnswer((_) async => {
+            "hosts": {},
+            "pruning": null,
+            "server_version": "Unit tests",
+            "protocol_min": "1.4",
+            "protocol_max": "1.4.2",
+            "genesis_hash": GENESIS_HASH_MAINNET,
+            "hash_function": "sha256",
+            "services": []
+          });
+      when(client?.getBatchHistory(args: historyBatchArgs0))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getBatchHistory(args: historyBatchArgs1))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getBatchHistory(args: historyBatchArgs2))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getBatchHistory(args: historyBatchArgs3))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getBatchHistory(args: historyBatchArgs4))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getBatchHistory(args: historyBatchArgs5))
+          .thenAnswer((_) async => historyBatchResponse);
+      when(client?.getHistory(scripthash: anyNamed("scripthash")))
+          .thenAnswer((_) async => [
+                {"height": 1000, "tx_hash": "some tx hash"}
+              ]);
+      when(cachedClient?.getTransaction(
+              txHash:
+                  "46b7358ccbc018da4e144188f311657e8b694f056211d7511726c4259dca86b4",
+              coin: Coin.particl))
+          .thenAnswer((_) async => tx1Raw);
+      when(cachedClient?.getTransaction(
+              txHash:
+                  "39a9c37d54d04f9ac6ed45aaa1a02b058391b5d1fc0e2e1d67e50f36b1d82896",
+              coin: Coin.particl))
+          .thenAnswer((_) async => tx2Raw);
+      when(cachedClient?.getTransaction(
+              txHash:
+                  "85130125ec9e37a48670fb5eb0a2780b94ea958cd700a1237ff75775d8a0edb0",
+              coin: Coin.particl))
+          .thenAnswer((_) async => tx2Raw);
+      when(cachedClient?.getTransaction(
+              txHash:
+                  "7b932948c95cf483798011da3fc77b6d53ee26d3d2ba4d90748cd007bdce48e8",
+              coin: Coin.particl))
+          .thenAnswer((_) async => tx3Raw);
+      when(cachedClient?.getTransaction(
+              txHash:
+                  "cb0d83958db55c91fb9cd9cab65ee516e63aea68ae5650a692918779ceb46576",
+              coin: Coin.particl))
+          .thenAnswer((_) async => tx4Raw);
+
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "8ba03c2c46ed4980fa1e4c84cbceeb2d5e1371a7ccbaf5f3d69c5114161a2247"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "3fedd8a2d5fc355727afe353413dc1a0ef861ba768744d5b8193c33cbc829339"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "b6fce6c41154ccf70676c5c91acd9b6899ef0195e34b4c05c4920daa827c19a3"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "0e8b6756b404db5a381fd71ad79cb595a6c36c938cf9913c5a0494b667c2151a"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "9b56ab30c7bef0e1eaa10a632c8e2dcdd11b2158d7a917c03d62936afd0015fc"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+      when(client?.getBatchHistory(args: {
+        "0": [
+          "c4b1d9cd4edb7c13eae863b1e4f8fd5acff29f1fe153c4f859906cbea26a3f2f"
+        ]
+      })).thenAnswer((realInvocation) async => {"0": []});
+
+      when(client?.getBatchUTXOs(args: anyNamed("args")))
+          .thenAnswer((_) async => batchGetUTXOResponse0);
+
+      when(priceAPI?.getPricesAnd24hChange(baseCurrency: "USD"))
+          .thenAnswer((_) async => {Coin.bitcoin: Tuple2(Decimal.one, 0.3)});
+
+      final wallet = await Hive.openBox<dynamic>(testWalletId);
+
+      // recover to fill data
+      await part?.recoverFromMnemonic(
+          mnemonic: TEST_MNEMONIC,
+          maxUnusedAddressGap: 2,
+          maxNumberOfIndexesToCheck: 1000,
+          height: 1296000);
+
+      // modify addresses to properly mock data to build a tx
+      final rcv44 = await secureStore.read(
+          key: testWalletId + "_receiveDerivationsP2PKH");
+      await secureStore.write(
+          key: testWalletId + "_receiveDerivationsP2PKH",
+          value: rcv44?.replaceFirst("PtQCgwUx9mLmRDWxB3J7MPnNsWDcce7a5g",
+              "PcKLXor8hqb3qSjtoHQThapJSbPapSDt4C"));
+      final rcv84 = await secureStore.read(
+          key: testWalletId + "_receiveDerivationsP2WPKH");
+      print('rcv84');
+      print(rcv84);
+      await secureStore.write(
+          key: testWalletId + "_receiveDerivationsP2WPKH",
+          value: rcv84?.replaceFirst(
+              "pw1q84crdrcnksdwxaexpzcpz5jq3ljmlxkx6fasgk",
+              "pw1qj6t0kvsmx8qd95pdh4rwxaz5qp5qtfz0xq2rja"));
+
+      await wallet
+          .put('receiveAddressesP2PKH', ["PcKLXor8hqb3qSjtoHQThapJSbPapSDt4C"]);
+      await wallet
+          .put('changeAddressesP2PKH', ["ProoccqpvCUamTYFCBbK1Th6mCjyH13yMM"]);
+
+      // final data = await part?.fetchBuildTxData(utxoList);
+      //
+      // print("data");
+      // print(data);
+      // print("utxoList");
+      // print(utxoList);
+      //
+      // final result = await part?.buildTransaction(
+      //     utxosToUse: utxoList,
+      //     utxoSigningData: data!,
+      //     recipients: ["pw1qfkmcngdr40vtpncug6fcfnldt7908h5v7nh8jt"],
+      //     satoshiAmounts: [2500]);
+
+      final result = await part?.prepareSend(
+          address: "pw1qfkmcngdr40vtpncug6fcfnldt7908h5v7nh8jt",
+          satoshiAmount: 2500,
+          args: {'feeRateAmount': 1});
+
+      print("RESULT IS $result");
+
+      // expect(secureStore.interactions, 29);
+      // expect(secureStore.writes, 11);
+      // expect(secureStore.reads, 18);
+      // expect(secureStore.deletes, 0);
 
       verifyNoMoreInteractions(client);
       verifyNoMoreInteractions(cachedClient);
