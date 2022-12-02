@@ -17,6 +17,8 @@ import 'package:stackwallet/utilities/flutter_secure_storage_interface.dart';
 import 'package:tuple/tuple.dart';
 
 import 'particl_history_sample_data.dart';
+import 'particl_transaction_data_samples.dart';
+import 'particl_utxo_sample_data.dart';
 import 'particl_wallet_test.mocks.dart';
 import 'particl_wallet_test_parameters.dart';
 
