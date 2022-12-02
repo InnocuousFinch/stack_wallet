@@ -1437,19 +1437,17 @@ void main() {
               "PcKLXor8hqb3qSjtoHQThapJSbPapSDt4C"));
       final rcv84 = await secureStore.read(
           key: testWalletId + "_receiveDerivationsP2WPKH");
-      print('rcv84');
-      print(rcv84);
       await secureStore.write(
           key: testWalletId + "_receiveDerivationsP2WPKH",
           value: rcv84?.replaceFirst(
               "pw1q84crdrcnksdwxaexpzcpz5jq3ljmlxkx6fasgk",
               "pw1qj6t0kvsmx8qd95pdh4rwxaz5qp5qtfz0xq2rja"));
 
-      await wallet
-          .put('receiveAddressesP2PKH', ["PcKLXor8hqb3qSjtoHQThapJSbPapSDt4C"]);
-      await wallet
-          .put('changeAddressesP2PKH', ["ProoccqpvCUamTYFCBbK1Th6mCjyH13yMM"]);
-
+      // await wallet
+      //     .put('receiveAddressesP2PKH', ["PcKLXor8hqb3qSjtoHQThapJSbPapSDt4C"]);
+      // await wallet
+      //     .put('changeAddressesP2PKH', ["ProoccqpvCUamTYFCBbK1Th6mCjyH13yMM"]);
+      //
       // final data = await part?.fetchBuildTxData(utxoList);
       //
       // print("data");
@@ -1474,10 +1472,11 @@ void main() {
       // expect(secureStore.writes, 11);
       // expect(secureStore.reads, 18);
       // expect(secureStore.deletes, 0);
-
-      verifyNoMoreInteractions(client);
-      verifyNoMoreInteractions(cachedClient);
-      verifyNoMoreInteractions(priceAPI);
+      //
+      // verifyNoMoreInteractions(client);
+      // verifyNoMoreInteractions(cachedClient);
+      // verifyNoMoreInteractions(priceAPI);
+      expect(true, false);
     });
 
     // test("prepareSend fails", () async {
