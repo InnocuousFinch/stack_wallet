@@ -109,8 +109,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: particl
-      resolved-ref: "761fb3beba0de17887440e49767536d1677de81b"
+      ref: "65eb920719c8f7895c5402a07497647e7fc4b346"
+      resolved-ref: "65eb920719c8f7895c5402a07497647e7fc4b346"
       url: "https://github.com/cypherstack/bitcoindart.git"
     source: git
     version: "3.0.1"
@@ -991,6 +991,15 @@ packages:
       url: "https://pub.dartlang.org"
     source: hosted
     version: "2.1.0"
+  particldart:
+    dependency: "direct main"
+    description:
+      path: "."
+      ref: particl
+      resolved-ref: c4672a4a62bcbea81c8174105faab30802a2399f
+      url: "https://github.com/cypherstack/bitcoindart-particl"
+    source: git
+    version: "1.0.0"
   path:
     dependency: transitive
     description:
