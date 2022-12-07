@@ -6,14 +6,13 @@ import 'dart:typed_data';
 import 'package:bech32/bech32.dart';
 import 'package:bip32/bip32.dart' as bip32;
 import 'package:bip39/bip39.dart' as bip39;
-import 'package:bitcoindart/src/models/networks.dart';
+import 'package:bitcoindart/bitcoindart.dart';
 import 'package:bs58check/bs58check.dart' as bs58check;
 import 'package:crypto/crypto.dart';
 import 'package:decimal/decimal.dart';
 import 'package:devicelocale/devicelocale.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
-import 'package:particldart/particldart.dart';
 import 'package:stackwallet/electrumx_rpc/cached_electrumx.dart';
 import 'package:stackwallet/electrumx_rpc/electrumx.dart';
 import 'package:stackwallet/hive/db.dart';
@@ -2190,13 +2189,13 @@ class ParticlWallet extends CoinServiceAPI {
 
     final changeAddresses = DB.instance.get<dynamic>(
         boxName: walletId, key: 'changeAddressesP2WPKH') as List<dynamic>;
-    final changeAddressesP2PKH =
-        DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
-            as List<dynamic>;
-
-    for (var i = 0; i < changeAddressesP2PKH.length; i++) {
-      changeAddresses.add(changeAddressesP2PKH[i] as String);
-    }
+    // final changeAddressesP2PKH =
+    //     DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
+    //         as List<dynamic>;
+    //
+    // for (var i = 0; i < changeAddressesP2PKH.length; i++) {
+    //   changeAddresses.add(changeAddressesP2PKH[i] as String);
+    // }
 
     final List<Map<String, dynamic>> allTxHashes =
         await _fetchHistory(allAddresses);
@@ -2869,6 +2868,8 @@ class ParticlWallet extends CoinServiceAPI {
     Map<String, dynamic> results = {};
     Map<String, List<String>> addressTxid = {};
 
+    print("CALLING FETCH BUILD TX DATA");
+
     // addresses to check
     List<String> addressesP2PKH = [];
     List<String> addressesP2WPKH = [];
@@ -3487,3 +3488,12 @@ class ParticlWallet extends CoinServiceAPI {
     }
   }
 }
+
+// Particl Network
+final particl = NetworkType(
+    messagePrefix: '\x18Bitcoin Signed Message:\n',
+    bech32: 'pw',
+    bip32: Bip32Type(public: 0x696e82d1, private: 0x8f1daeb8),
+    pubKeyHash: 0x38,
+    scriptHash: 0x3c,
+    wif: 0x6c);
