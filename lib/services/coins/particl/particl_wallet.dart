@@ -51,7 +51,7 @@ const String GENESIS_HASH_MAINNET =
 const String GENESIS_HASH_TESTNET =
     "0000594ada5310b367443ee0afd4fa3d0bbd5850ea4e33cdc7d6a904a7ec7c90";
 
-enum DerivePathType { bip84 }
+enum DerivePathType { bip44, bip84 }
 
 bip32.BIP32 getBip32Node(
   int chain,
@@ -94,6 +94,8 @@ bip32.BIP32 getBip32NodeFromRoot(
       throw Exception("Invalid Particl network type used!");
   }
   switch (derivePathType) {
+    case DerivePathType.bip44:
+      return root.derivePath("m/44'/$coinType'/0'/$chain/$index");
     case DerivePathType.bip84:
       return root.derivePath("m/84'/$coinType'/0'/$chain/$index");
     default:
@@ -229,10 +231,10 @@ class ParticlWallet extends CoinServiceAPI {
       _getCurrentAddressForChain(0, DerivePathType.bip84);
   Future<String>? _currentReceivingAddress;
 
-  // Future<String> get currentLegacyReceivingAddress =>
-  //     _currentReceivingAddressP2PKH ??=
-  //         _getCurrentAddressForChain(0, DerivePathType.bip44);
-  // Future<String>? _currentReceivingAddressP2PKH;
+  Future<String> get currentLegacyReceivingAddress =>
+      _currentReceivingAddressP2PKH ??=
+          _getCurrentAddressForChain(0, DerivePathType.bip44);
+  Future<String>? _currentReceivingAddressP2PKH;
 
   @override
   Future<void> exit() async {
@@ -292,29 +294,27 @@ class ParticlWallet extends CoinServiceAPI {
     } catch (err) {
       // Base58check decode fail
     }
-
-    return DerivePathType.bip84;
-    // if (decodeBase58 != null) {
-    //   if (decodeBase58[0] == _network.pubKeyHash) {
-    //     // P2PKH
-    //     return DerivePathType.bip44;
-    //   }
-    //   throw ArgumentError('Invalid version or Network mismatch');
-    // } else {
-    //   try {
-    //     decodeBech32 = segwit.decode(address, particl.bech32!);
-    //   } catch (err) {
-    //     // Bech32 decode fail
-    //   }
-    //   if (_network.bech32 != decodeBech32!.hrp) {
-    //     throw ArgumentError('Invalid prefix or Network mismatch');
-    //   }
-    //   if (decodeBech32.version != 0) {
-    //     throw ArgumentError('Invalid address version');
-    //   }
-    //   // P2WPKH
-    //   return DerivePathType.bip84;
-    // }
+    if (decodeBase58 != null) {
+      if (decodeBase58[0] == _network.pubKeyHash) {
+        // P2PKH
+        return DerivePathType.bip44;
+      }
+      throw ArgumentError('Invalid version or Network mismatch');
+    } else {
+      try {
+        decodeBech32 = segwit.decode(address, particl.bech32!);
+      } catch (err) {
+        // Bech32 decode fail
+      }
+      if (_network.bech32 != decodeBech32!.hrp) {
+        throw ArgumentError('Invalid prefix or Network mismatch');
+      }
+      if (decodeBech32.version != 0) {
+        throw ArgumentError('Invalid address version');
+      }
+      // P2WPKH
+      return DerivePathType.bip84;
+    }
   }
 
   bool longMutex = false;
@@ -418,13 +418,13 @@ class ParticlWallet extends CoinServiceAPI {
         );
         String? address;
         switch (type) {
-          // case DerivePathType.bip44:
-          //   address = P2PKH(
-          //           data: PaymentData(pubkey: node.publicKey),
-          //           network: _network)
-          //       .data
-          //       .address!;
-          //   break;
+          case DerivePathType.bip44:
+            address = P2PKH(
+                    data: PaymentData(pubkey: node.publicKey),
+                    network: _network)
+                .data
+                .address!;
+            break;
           case DerivePathType.bip84:
             address = P2WPKH(
                     network: _network,
@@ -511,21 +511,21 @@ class ParticlWallet extends CoinServiceAPI {
   }) async {
     longMutex = true;
 
-    // Map<String, Map<String, String>> p2pkhReceiveDerivations = {};
+    Map<String, Map<String, String>> p2pkhReceiveDerivations = {};
     Map<String, Map<String, String>> p2wpkhReceiveDerivations = {};
-    // Map<String, Map<String, String>> p2pkhChangeDerivations = {};
+    Map<String, Map<String, String>> p2pkhChangeDerivations = {};
     Map<String, Map<String, String>> p2wpkhChangeDerivations = {};
 
     final root = await compute(getBip32RootWrapper, Tuple2(mnemonic, _network));
 
-    // List<String> p2pkhReceiveAddressArray = [];
+    List<String> p2pkhReceiveAddressArray = [];
     List<String> p2wpkhReceiveAddressArray = [];
-    // int p2pkhReceiveIndex = -1;
+    int p2pkhReceiveIndex = -1;
     int p2wpkhReceiveIndex = -1;
 
-    // List<String> p2pkhChangeAddressArray = [];
+    List<String> p2pkhChangeAddressArray = [];
     List<String> p2wpkhChangeAddressArray = [];
-    // int p2pkhChangeIndex = -1;
+    int p2pkhChangeIndex = -1;
     int p2wpkhChangeIndex = -1;
 
     // actual size is 24 due to p2pkh, and p2wpkh so 12x2
@@ -535,8 +535,8 @@ class ParticlWallet extends CoinServiceAPI {
       // receiving addresses
       Logging.instance
           .log("checking receiving addresses...", level: LogLevel.Info);
-      // final resultReceive44 = _checkGaps(maxNumberOfIndexesToCheck,
-      //     maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip44, 0);
+      final resultReceive44 = _checkGaps(maxNumberOfIndexesToCheck,
+          maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip44, 0);
 
       final resultReceive84 = _checkGaps(maxNumberOfIndexesToCheck,
           maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip84, 0);
@@ -544,19 +544,20 @@ class ParticlWallet extends CoinServiceAPI {
       Logging.instance
           .log("checking change addresses...", level: LogLevel.Info);
       // change addresses
-      // final resultChange44 = _checkGaps(maxNumberOfIndexesToCheck,
-      //     maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip44, 1);
+      final resultChange44 = _checkGaps(maxNumberOfIndexesToCheck,
+          maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip44, 1);
 
       final resultChange84 = _checkGaps(maxNumberOfIndexesToCheck,
           maxUnusedAddressGap, txCountBatchSize, root, DerivePathType.bip84, 1);
 
-      await Future.wait([resultReceive84, resultChange84]);
+      await Future.wait(
+          [resultReceive44, resultReceive84, resultChange44, resultChange84]);
 
-      // p2pkhReceiveAddressArray =
-      //     (await resultReceive44)['addressArray'] as List<String>;
-      // p2pkhReceiveIndex = (await resultReceive44)['index'] as int;
-      // p2pkhReceiveDerivations = (await resultReceive44)['derivations']
-      //     as Map<String, Map<String, String>>;
+      p2pkhReceiveAddressArray =
+          (await resultReceive44)['addressArray'] as List<String>;
+      p2pkhReceiveIndex = (await resultReceive44)['index'] as int;
+      p2pkhReceiveDerivations = (await resultReceive44)['derivations']
+          as Map<String, Map<String, String>>;
 
       p2wpkhReceiveAddressArray =
           (await resultReceive84)['addressArray'] as List<String>;
@@ -564,11 +565,11 @@ class ParticlWallet extends CoinServiceAPI {
       p2wpkhReceiveDerivations = (await resultReceive84)['derivations']
           as Map<String, Map<String, String>>;
 
-      // p2pkhChangeAddressArray =
-      //     (await resultChange44)['addressArray'] as List<String>;
-      // p2pkhChangeIndex = (await resultChange44)['index'] as int;
-      // p2pkhChangeDerivations = (await resultChange44)['derivations']
-      //     as Map<String, Map<String, String>>;
+      p2pkhChangeAddressArray =
+          (await resultChange44)['addressArray'] as List<String>;
+      p2pkhChangeIndex = (await resultChange44)['index'] as int;
+      p2pkhChangeDerivations = (await resultChange44)['derivations']
+          as Map<String, Map<String, String>>;
 
       p2wpkhChangeAddressArray =
           (await resultChange84)['addressArray'] as List<String>;
@@ -577,12 +578,12 @@ class ParticlWallet extends CoinServiceAPI {
           as Map<String, Map<String, String>>;
 
       // save the derivations (if any)
-      // if (p2pkhReceiveDerivations.isNotEmpty) {
-      //   await addDerivations(
-      //       chain: 0,
-      //       derivePathType: DerivePathType.bip44,
-      //       derivationsToAdd: p2pkhReceiveDerivations);
-      // }
+      if (p2pkhReceiveDerivations.isNotEmpty) {
+        await addDerivations(
+            chain: 0,
+            derivePathType: DerivePathType.bip44,
+            derivationsToAdd: p2pkhReceiveDerivations);
+      }
 
       if (p2wpkhReceiveDerivations.isNotEmpty) {
         await addDerivations(
@@ -590,12 +591,12 @@ class ParticlWallet extends CoinServiceAPI {
             derivePathType: DerivePathType.bip84,
             derivationsToAdd: p2wpkhReceiveDerivations);
       }
-      // if (p2pkhChangeDerivations.isNotEmpty) {
-      //   await addDerivations(
-      //       chain: 1,
-      //       derivePathType: DerivePathType.bip44,
-      //       derivationsToAdd: p2pkhChangeDerivations);
-      // }
+      if (p2pkhChangeDerivations.isNotEmpty) {
+        await addDerivations(
+            chain: 1,
+            derivePathType: DerivePathType.bip44,
+            derivationsToAdd: p2pkhChangeDerivations);
+      }
 
       if (p2wpkhChangeDerivations.isNotEmpty) {
         await addDerivations(
@@ -606,12 +607,12 @@ class ParticlWallet extends CoinServiceAPI {
 
       // If restoring a wallet that never received any funds, then set receivingArray manually
       // If we didn't do this, it'd store an empty array
-      // if (p2pkhReceiveIndex == -1) {
-      //   final address =
-      //       await _generateAddressForChain(0, 0, DerivePathType.bip44);
-      //   p2pkhReceiveAddressArray.add(address);
-      //   p2pkhReceiveIndex = 0;
-      // }
+      if (p2pkhReceiveIndex == -1) {
+        final address =
+            await _generateAddressForChain(0, 0, DerivePathType.bip44);
+        p2pkhReceiveAddressArray.add(address);
+        p2pkhReceiveIndex = 0;
+      }
 
       if (p2wpkhReceiveIndex == -1) {
         final address =
@@ -622,12 +623,12 @@ class ParticlWallet extends CoinServiceAPI {
 
       // If restoring a wallet that never sent any funds with change, then set changeArray
       // manually. If we didn't do this, it'd store an empty array.
-      // if (p2pkhChangeIndex == -1) {
-      //   final address =
-      //       await _generateAddressForChain(1, 0, DerivePathType.bip44);
-      //   p2pkhChangeAddressArray.add(address);
-      //   p2pkhChangeIndex = 0;
-      // }
+      if (p2pkhChangeIndex == -1) {
+        final address =
+            await _generateAddressForChain(1, 0, DerivePathType.bip44);
+        p2pkhChangeAddressArray.add(address);
+        p2pkhChangeIndex = 0;
+      }
 
       if (p2wpkhChangeIndex == -1) {
         final address =
@@ -644,14 +645,14 @@ class ParticlWallet extends CoinServiceAPI {
           boxName: walletId,
           key: 'changeAddressesP2WPKH',
           value: p2wpkhChangeAddressArray);
-      // await DB.instance.put<dynamic>(
-      //     boxName: walletId,
-      //     key: 'receivingAddressesP2PKH',
-      //     value: p2pkhReceiveAddressArray);
-      // await DB.instance.put<dynamic>(
-      //     boxName: walletId,
-      //     key: 'changeAddressesP2PKH',
-      //     value: p2pkhChangeAddressArray);
+      await DB.instance.put<dynamic>(
+          boxName: walletId,
+          key: 'receivingAddressesP2PKH',
+          value: p2pkhReceiveAddressArray);
+      await DB.instance.put<dynamic>(
+          boxName: walletId,
+          key: 'changeAddressesP2PKH',
+          value: p2pkhChangeAddressArray);
       await DB.instance.put<dynamic>(
           boxName: walletId,
           key: 'receivingIndexP2WPKH',
@@ -660,12 +661,12 @@ class ParticlWallet extends CoinServiceAPI {
           boxName: walletId,
           key: 'changeIndexP2WPKH',
           value: p2wpkhChangeIndex);
-      // await DB.instance.put<dynamic>(
-      //     boxName: walletId, key: 'changeIndexP2PKH', value: p2pkhChangeIndex);
-      // await DB.instance.put<dynamic>(
-      //     boxName: walletId,
-      //     key: 'receivingIndexP2PKH',
-      //     value: p2pkhReceiveIndex);
+      await DB.instance.put<dynamic>(
+          boxName: walletId, key: 'changeIndexP2PKH', value: p2pkhChangeIndex);
+      await DB.instance.put<dynamic>(
+          boxName: walletId,
+          key: 'receivingIndexP2PKH',
+          value: p2pkhReceiveIndex);
       await DB.instance
           .put<dynamic>(boxName: walletId, key: "id", value: _walletId);
       await DB.instance
@@ -1229,12 +1230,7 @@ class ParticlWallet extends CoinServiceAPI {
       confirmations: 0,
     );
 
-    Logging.instance.log("CACHED TX DATA IS: $cachedTxData",
-        level: LogLevel.Info, printFullLength: true);
-
     if (cachedTxData == null) {
-      Logging.instance.log("CACHED TX DATA IS NULL : $cachedTxData",
-          level: LogLevel.Info, printFullLength: true);
       final data = await _fetchTransactionData();
       _transactionData = Future(() => data);
     }
@@ -1354,11 +1350,11 @@ class ParticlWallet extends CoinServiceAPI {
         boxName: walletId, key: 'receivingAddressesP2WPKH') as List<dynamic>;
     final changeAddresses = DB.instance.get<dynamic>(
         boxName: walletId, key: 'changeAddressesP2WPKH') as List<dynamic>;
-    // final receivingAddressesP2PKH = DB.instance.get<dynamic>(
-    //     boxName: walletId, key: 'receivingAddressesP2PKH') as List<dynamic>;
-    // final changeAddressesP2PKH =
-    //     DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
-    //         as List<dynamic>;
+    final receivingAddressesP2PKH = DB.instance.get<dynamic>(
+        boxName: walletId, key: 'receivingAddressesP2PKH') as List<dynamic>;
+    final changeAddressesP2PKH =
+        DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
+            as List<dynamic>;
 
     for (var i = 0; i < receivingAddresses.length; i++) {
       if (!allAddresses.contains(receivingAddresses[i])) {
@@ -1370,16 +1366,16 @@ class ParticlWallet extends CoinServiceAPI {
         allAddresses.add(changeAddresses[i] as String);
       }
     }
-    // for (var i = 0; i < receivingAddressesP2PKH.length; i++) {
-    //   if (!allAddresses.contains(receivingAddressesP2PKH[i])) {
-    //     allAddresses.add(receivingAddressesP2PKH[i] as String);
-    //   }
-    // }
-    // for (var i = 0; i < changeAddressesP2PKH.length; i++) {
-    //   if (!allAddresses.contains(changeAddressesP2PKH[i])) {
-    //     allAddresses.add(changeAddressesP2PKH[i] as String);
-    //   }
-    // }
+    for (var i = 0; i < receivingAddressesP2PKH.length; i++) {
+      if (!allAddresses.contains(receivingAddressesP2PKH[i])) {
+        allAddresses.add(receivingAddressesP2PKH[i] as String);
+      }
+    }
+    for (var i = 0; i < changeAddressesP2PKH.length; i++) {
+      if (!allAddresses.contains(changeAddressesP2PKH[i])) {
+        allAddresses.add(changeAddressesP2PKH[i] as String);
+      }
+    }
 
     return allAddresses;
   }
@@ -1443,10 +1439,10 @@ class ParticlWallet extends CoinServiceAPI {
         .put<dynamic>(boxName: walletId, key: "receivingIndexP2WPKH", value: 0);
     await DB.instance
         .put<dynamic>(boxName: walletId, key: "changeIndexP2WPKH", value: 0);
-    // await DB.instance
-    //     .put<dynamic>(boxName: walletId, key: "receivingIndexP2PKH", value: 0);
-    // await DB.instance
-    //     .put<dynamic>(boxName: walletId, key: "changeIndexP2PKH", value: 0);
+    await DB.instance
+        .put<dynamic>(boxName: walletId, key: "receivingIndexP2PKH", value: 0);
+    await DB.instance
+        .put<dynamic>(boxName: walletId, key: "changeIndexP2PKH", value: 0);
     await DB.instance.put<dynamic>(
       boxName: walletId,
       key: 'blocked_tx_hashes',
@@ -1478,21 +1474,21 @@ class ParticlWallet extends CoinServiceAPI {
       ),
 
       // P2PKH
-      // _generateAddressForChain(0, 0, DerivePathType.bip44).then(
-      //   (initialReceivingAddressP2PKH) {
-      //     _addToAddressesArrayForChain(
-      //         initialReceivingAddressP2PKH, 0, DerivePathType.bip44);
-      //     _currentReceivingAddressP2PKH =
-      //         Future(() => initialReceivingAddressP2PKH);
-      //   },
-      // ),
-      // _generateAddressForChain(1, 0, DerivePathType.bip44).then(
-      //   (initialChangeAddressP2PKH) => _addToAddressesArrayForChain(
-      //     initialChangeAddressP2PKH,
-      //     1,
-      //     DerivePathType.bip44,
-      //   ),
-      // ),
+      _generateAddressForChain(0, 0, DerivePathType.bip44).then(
+        (initialReceivingAddressP2PKH) {
+          _addToAddressesArrayForChain(
+              initialReceivingAddressP2PKH, 0, DerivePathType.bip44);
+          _currentReceivingAddressP2PKH =
+              Future(() => initialReceivingAddressP2PKH);
+        },
+      ),
+      _generateAddressForChain(1, 0, DerivePathType.bip44).then(
+        (initialChangeAddressP2PKH) => _addToAddressesArrayForChain(
+          initialChangeAddressP2PKH,
+          1,
+          DerivePathType.bip44,
+        ),
+      ),
     ]);
 
     // // P2PKH
@@ -1550,17 +1546,16 @@ class ParticlWallet extends CoinServiceAPI {
       ),
     );
     final data = PaymentData(pubkey: node.publicKey);
-    // String address;
+    String address;
 
-    // switch (derivePathType) {
-    //   // case DerivePathType.bip44:
-    //   //   address = P2PKH(data: data, network: _network).data.address!;
-    //   //   break;
-    //   case DerivePathType.bip84:
-    //     address = P2WPKH(network: _network, data: data).data.address!;
-    //     break;
-    // }
-    String address = P2WPKH(network: _network, data: data).data.address!;
+    switch (derivePathType) {
+      case DerivePathType.bip44:
+        address = P2PKH(data: data, network: _network).data.address!;
+        break;
+      case DerivePathType.bip84:
+        address = P2WPKH(network: _network, data: data).data.address!;
+        break;
+    }
 
     // add generated address & info to derivations
     await addDerivation(
@@ -1580,15 +1575,15 @@ class ParticlWallet extends CoinServiceAPI {
       int chain, DerivePathType derivePathType) async {
     // Here we assume chain == 1 if it isn't 0
     String indexKey = chain == 0 ? "receivingIndex" : "changeIndex";
-    // switch (derivePathType) {
-    //   case DerivePathType.bip44:
-    //     indexKey += "P2PKH";
-    //     break;
-    //   case DerivePathType.bip84:
-    //     indexKey += "P2WPKH";
-    //     break;
-    // }
-    indexKey += "P2WPKH";
+    switch (derivePathType) {
+      case DerivePathType.bip44:
+        indexKey += "P2PKH";
+        break;
+      case DerivePathType.bip84:
+        indexKey += "P2WPKH";
+        break;
+    }
+
     final newIndex =
         (DB.instance.get<dynamic>(boxName: walletId, key: indexKey)) + 1;
     await DB.instance
@@ -1607,9 +1602,9 @@ class ParticlWallet extends CoinServiceAPI {
       chainArray = 'changeAddresses';
     }
     switch (derivePathType) {
-      // case DerivePathType.bip44:
-      //   chainArray += "P2PKH";
-      //   break;
+      case DerivePathType.bip44:
+        chainArray += "P2PKH";
+        break;
       case DerivePathType.bip84:
         chainArray += "P2WPKH";
         break;
@@ -1644,9 +1639,9 @@ class ParticlWallet extends CoinServiceAPI {
     // Here, we assume that chain == 1 if it isn't 0
     String arrayKey = chain == 0 ? "receivingAddresses" : "changeAddresses";
     switch (derivePathType) {
-      // case DerivePathType.bip44:
-      //   arrayKey += "P2PKH";
-      //   break;
+      case DerivePathType.bip44:
+        arrayKey += "P2PKH";
+        break;
       case DerivePathType.bip84:
         arrayKey += "P2WPKH";
         break;
@@ -1662,15 +1657,14 @@ class ParticlWallet extends CoinServiceAPI {
   }) {
     String key;
     String chainId = chain == 0 ? "receive" : "change";
-    key = "${walletId}_${chainId}DerivationsP2WPKH";
-    // switch (derivePathType) {
-    //   case DerivePathType.bip44:
-    //     key = "${walletId}_${chainId}DerivationsP2PKH";
-    //     break;
-    //   case DerivePathType.bip84:
-    //     key = "${walletId}_${chainId}DerivationsP2WPKH";
-    //     break;
-    // }
+    switch (derivePathType) {
+      case DerivePathType.bip44:
+        key = "${walletId}_${chainId}DerivationsP2PKH";
+        break;
+      case DerivePathType.bip84:
+        key = "${walletId}_${chainId}DerivationsP2WPKH";
+        break;
+    }
     return key;
   }
 
@@ -1979,9 +1973,9 @@ class ParticlWallet extends CoinServiceAPI {
         // Check the new receiving index
         String indexKey = "receivingIndex";
         switch (derivePathType) {
-          // case DerivePathType.bip44:
-          //   indexKey += "P2PKH";
-          //   break;
+          case DerivePathType.bip44:
+            indexKey += "P2PKH";
+            break;
           case DerivePathType.bip84:
             indexKey += "P2WPKH";
             break;
@@ -2000,9 +1994,9 @@ class ParticlWallet extends CoinServiceAPI {
         // Set the new receiving address that the service
 
         switch (derivePathType) {
-          // case DerivePathType.bip44:
-          //   _currentReceivingAddressP2PKH = Future(() => newReceivingAddress);
-          //   break;
+          case DerivePathType.bip44:
+            _currentReceivingAddressP2PKH = Future(() => newReceivingAddress);
+            break;
           case DerivePathType.bip84:
             _currentReceivingAddress = Future(() => newReceivingAddress);
             break;
@@ -2033,9 +2027,9 @@ class ParticlWallet extends CoinServiceAPI {
         // Check the new change index
         String indexKey = "changeIndex";
         switch (derivePathType) {
-          // case DerivePathType.bip44:
-          //   indexKey += "P2PKH";
-          //   break;
+          case DerivePathType.bip44:
+            indexKey += "P2PKH";
+            break;
           case DerivePathType.bip84:
             indexKey += "P2WPKH";
             break;
@@ -2230,13 +2224,13 @@ class ParticlWallet extends CoinServiceAPI {
 
     final changeAddresses = DB.instance.get<dynamic>(
         boxName: walletId, key: 'changeAddressesP2WPKH') as List<dynamic>;
-    // final changeAddressesP2PKH =
-    //     DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
-    //         as List<dynamic>;
-    //
-    // for (var i = 0; i < changeAddressesP2PKH.length; i++) {
-    //   changeAddresses.add(changeAddressesP2PKH[i] as String);
-    // }
+    final changeAddressesP2PKH =
+        DB.instance.get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH')
+            as List<dynamic>;
+
+    for (var i = 0; i < changeAddressesP2PKH.length; i++) {
+      changeAddresses.add(changeAddressesP2PKH[i] as String);
+    }
 
     final List<Map<String, dynamic>> allTxHashes =
         await _fetchHistory(allAddresses);
@@ -2909,10 +2903,8 @@ class ParticlWallet extends CoinServiceAPI {
     Map<String, dynamic> results = {};
     Map<String, List<String>> addressTxid = {};
 
-    print("CALLING FETCH BUILD TX DATA");
-
     // addresses to check
-    // List<String> addressesP2PKH = [];
+    List<String> addressesP2PKH = [];
     List<String> addressesP2WPKH = [];
 
     try {
@@ -2934,9 +2926,9 @@ class ParticlWallet extends CoinServiceAPI {
             }
             (addressTxid[address] as List).add(txid);
             switch (addressType(address: address)) {
-              // case DerivePathType.bip44:
-              //   addressesP2PKH.add(address);
-              //   break;
+              case DerivePathType.bip44:
+                addressesP2PKH.add(address);
+                break;
               case DerivePathType.bip84:
                 addressesP2WPKH.add(address);
                 break;
@@ -2946,62 +2938,62 @@ class ParticlWallet extends CoinServiceAPI {
       }
 
       // p2pkh / bip44
-      // final p2pkhLength = addressesP2PKH.length;
-      // if (p2pkhLength > 0) {
-      //   final receiveDerivations = await _fetchDerivations(
-      //     chain: 0,
-      //     derivePathType: DerivePathType.bip44,
-      //   );
-      //   final changeDerivations = await _fetchDerivations(
-      //     chain: 1,
-      //     derivePathType: DerivePathType.bip44,
-      //   );
-      //   for (int i = 0; i < p2pkhLength; i++) {
-      //     // receives
-      //     final receiveDerivation = receiveDerivations[addressesP2PKH[i]];
-      //     // if a match exists it will not be null
-      //     if (receiveDerivation != null) {
-      //       final data = P2PKH(
-      //         data: PaymentData(
-      //             pubkey: Format.stringToUint8List(
-      //                 receiveDerivation["pubKey"] as String)),
-      //         network: _network,
-      //       ).data;
-      //
-      //       for (String tx in addressTxid[addressesP2PKH[i]]!) {
-      //         results[tx] = {
-      //           "output": data.output,
-      //           "keyPair": ECPair.fromWIF(
-      //             receiveDerivation["wif"] as String,
-      //             network: _network,
-      //           ),
-      //         };
-      //       }
-      //     } else {
-      //       // if its not a receive, check change
-      //       final changeDerivation = changeDerivations[addressesP2PKH[i]];
-      //       // if a match exists it will not be null
-      //       if (changeDerivation != null) {
-      //         final data = P2PKH(
-      //           data: PaymentData(
-      //               pubkey: Format.stringToUint8List(
-      //                   changeDerivation["pubKey"] as String)),
-      //           network: _network,
-      //         ).data;
-      //
-      //         for (String tx in addressTxid[addressesP2PKH[i]]!) {
-      //           results[tx] = {
-      //             "output": data.output,
-      //             "keyPair": ECPair.fromWIF(
-      //               changeDerivation["wif"] as String,
-      //               network: _network,
-      //             ),
-      //           };
-      //         }
-      //       }
-      //     }
-      //   }
-      // }
+      final p2pkhLength = addressesP2PKH.length;
+      if (p2pkhLength > 0) {
+        final receiveDerivations = await _fetchDerivations(
+          chain: 0,
+          derivePathType: DerivePathType.bip44,
+        );
+        final changeDerivations = await _fetchDerivations(
+          chain: 1,
+          derivePathType: DerivePathType.bip44,
+        );
+        for (int i = 0; i < p2pkhLength; i++) {
+          // receives
+          final receiveDerivation = receiveDerivations[addressesP2PKH[i]];
+          // if a match exists it will not be null
+          if (receiveDerivation != null) {
+            final data = P2PKH(
+              data: PaymentData(
+                  pubkey: Format.stringToUint8List(
+                      receiveDerivation["pubKey"] as String)),
+              network: _network,
+            ).data;
+
+            for (String tx in addressTxid[addressesP2PKH[i]]!) {
+              results[tx] = {
+                "output": data.output,
+                "keyPair": ECPair.fromWIF(
+                  receiveDerivation["wif"] as String,
+                  network: _network,
+                ),
+              };
+            }
+          } else {
+            // if its not a receive, check change
+            final changeDerivation = changeDerivations[addressesP2PKH[i]];
+            // if a match exists it will not be null
+            if (changeDerivation != null) {
+              final data = P2PKH(
+                data: PaymentData(
+                    pubkey: Format.stringToUint8List(
+                        changeDerivation["pubKey"] as String)),
+                network: _network,
+              ).data;
+
+              for (String tx in addressTxid[addressesP2PKH[i]]!) {
+                results[tx] = {
+                  "output": data.output,
+                  "keyPair": ECPair.fromWIF(
+                    changeDerivation["wif"] as String,
+                    network: _network,
+                  ),
+                };
+              }
+            }
+          }
+        }
+      }
 
       // p2wpkh / bip84
       final p2wpkhLength = addressesP2WPKH.length;
@@ -3133,24 +3125,20 @@ class ParticlWallet extends CoinServiceAPI {
 
     print("BUILT TX IS ${builtTx.toHex().toString()}");
 
-    String hexBefore = builtTx.toHex().toString();
-
-    // String strippedTrailingBytes =
-    //     hexBefore.replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "");
-    // return {"hex": strippedTrailingBytes, "vSize": vSize};
-
-    if (hexBefore.endsWith('000000')) {
-      String stripped = hexBefore.substring(0, hexBefore.length - 6);
-      return {"hex": stripped, "vSize": vSize};
-    } else if (hexBefore.endsWith('0000')) {
+    String hexBefore = builtTx.toHex();
+    if (builtTx.toHex().toString().endsWith('0000')) {
+      //   print("END WITH ZERO");
       String stripped = hexBefore.substring(0, hexBefore.length - 4);
       return {"hex": stripped, "vSize": vSize};
-    } else if (hexBefore.endsWith('00')) {
-      String stripped = hexBefore.substring(0, hexBefore.length - 2);
-      return {"hex": stripped, "vSize": vSize};
-    } else {
-      return {"hex": hexBefore, "vSize": vSize};
+      // } else {
+      //   print("DOES NOT END WITH ZERO");
+      //   return {"hex": builtTx.toHex(), "vSize": vSize};
     }
+    return {"hex": builtTx.toHex(), "vSize": vSize};
+
+    String strippedTrailingBytes =
+        hexBefore.replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "");
+    return {"hex": strippedTrailingBytes, "vSize": vSize};
   }
 
   @override
@@ -3215,38 +3203,38 @@ class ParticlWallet extends CoinServiceAPI {
 
     // restore from backup
     // p2pkh
-    // final tempReceivingAddressesP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'receivingAddressesP2PKH_BACKUP');
-    // final tempChangeAddressesP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH_BACKUP');
-    // final tempReceivingIndexP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'receivingIndexP2PKH_BACKUP');
-    // final tempChangeIndexP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'changeIndexP2PKH_BACKUP');
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'receivingAddressesP2PKH',
-    //     value: tempReceivingAddressesP2PKH);
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'changeAddressesP2PKH',
-    //     value: tempChangeAddressesP2PKH);
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'receivingIndexP2PKH',
-    //     value: tempReceivingIndexP2PKH);
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'changeIndexP2PKH',
-    //     value: tempChangeIndexP2PKH);
-    // await DB.instance.delete<dynamic>(
-    //     key: 'receivingAddressesP2PKH_BACKUP', boxName: walletId);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'changeAddressesP2PKH_BACKUP', boxName: walletId);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'receivingIndexP2PKH_BACKUP', boxName: walletId);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'changeIndexP2PKH_BACKUP', boxName: walletId);
+    final tempReceivingAddressesP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'receivingAddressesP2PKH_BACKUP');
+    final tempChangeAddressesP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH_BACKUP');
+    final tempReceivingIndexP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'receivingIndexP2PKH_BACKUP');
+    final tempChangeIndexP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'changeIndexP2PKH_BACKUP');
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'receivingAddressesP2PKH',
+        value: tempReceivingAddressesP2PKH);
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'changeAddressesP2PKH',
+        value: tempChangeAddressesP2PKH);
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'receivingIndexP2PKH',
+        value: tempReceivingIndexP2PKH);
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'changeIndexP2PKH',
+        value: tempChangeIndexP2PKH);
+    await DB.instance.delete<dynamic>(
+        key: 'receivingAddressesP2PKH_BACKUP', boxName: walletId);
+    await DB.instance
+        .delete<dynamic>(key: 'changeAddressesP2PKH_BACKUP', boxName: walletId);
+    await DB.instance
+        .delete<dynamic>(key: 'receivingIndexP2PKH_BACKUP', boxName: walletId);
+    await DB.instance
+        .delete<dynamic>(key: 'changeIndexP2PKH_BACKUP', boxName: walletId);
 
     // p2wpkh
     final tempReceivingAddressesP2WPKH = DB.instance.get<dynamic>(
@@ -3283,21 +3271,21 @@ class ParticlWallet extends CoinServiceAPI {
         .delete<dynamic>(key: 'changeIndexP2WPKH_BACKUP', boxName: walletId);
 
     // P2PKH derivations
-    // final p2pkhReceiveDerivationsString = await _secureStore.read(
-    //     key: "${walletId}_receiveDerivationsP2PKH_BACKUP");
-    // final p2pkhChangeDerivationsString = await _secureStore.read(
-    //     key: "${walletId}_changeDerivationsP2PKH_BACKUP");
-    //
-    // await _secureStore.write(
-    //     key: "${walletId}_receiveDerivationsP2PKH",
-    //     value: p2pkhReceiveDerivationsString);
-    // await _secureStore.write(
-    //     key: "${walletId}_changeDerivationsP2PKH",
-    //     value: p2pkhChangeDerivationsString);
-    //
-    // await _secureStore.delete(
-    //     key: "${walletId}_receiveDerivationsP2PKH_BACKUP");
-    // await _secureStore.delete(key: "${walletId}_changeDerivationsP2PKH_BACKUP");
+    final p2pkhReceiveDerivationsString = await _secureStore.read(
+        key: "${walletId}_receiveDerivationsP2PKH_BACKUP");
+    final p2pkhChangeDerivationsString = await _secureStore.read(
+        key: "${walletId}_changeDerivationsP2PKH_BACKUP");
+
+    await _secureStore.write(
+        key: "${walletId}_receiveDerivationsP2PKH",
+        value: p2pkhReceiveDerivationsString);
+    await _secureStore.write(
+        key: "${walletId}_changeDerivationsP2PKH",
+        value: p2pkhChangeDerivationsString);
+
+    await _secureStore.delete(
+        key: "${walletId}_receiveDerivationsP2PKH_BACKUP");
+    await _secureStore.delete(key: "${walletId}_changeDerivationsP2PKH_BACKUP");
 
     // P2WPKH derivations
     final p2wpkhReceiveDerivationsString = await _secureStore.read(
@@ -3333,41 +3321,41 @@ class ParticlWallet extends CoinServiceAPI {
 
     // backup current and clear data
     // p2pkh
-    // final tempReceivingAddressesP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'receivingAddressesP2PKH');
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'receivingAddressesP2PKH_BACKUP',
-    //     value: tempReceivingAddressesP2PKH);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'receivingAddressesP2PKH', boxName: walletId);
-    //
-    // final tempChangeAddressesP2PKH = DB.instance
-    //     .get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH');
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'changeAddressesP2PKH_BACKUP',
-    //     value: tempChangeAddressesP2PKH);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'changeAddressesP2PKH', boxName: walletId);
-    //
-    // final tempReceivingIndexP2PKH =
-    //     DB.instance.get<dynamic>(boxName: walletId, key: 'receivingIndexP2PKH');
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'receivingIndexP2PKH_BACKUP',
-    //     value: tempReceivingIndexP2PKH);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'receivingIndexP2PKH', boxName: walletId);
-    //
-    // final tempChangeIndexP2PKH =
-    //     DB.instance.get<dynamic>(boxName: walletId, key: 'changeIndexP2PKH');
-    // await DB.instance.put<dynamic>(
-    //     boxName: walletId,
-    //     key: 'changeIndexP2PKH_BACKUP',
-    //     value: tempChangeIndexP2PKH);
-    // await DB.instance
-    //     .delete<dynamic>(key: 'changeIndexP2PKH', boxName: walletId);
+    final tempReceivingAddressesP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'receivingAddressesP2PKH');
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'receivingAddressesP2PKH_BACKUP',
+        value: tempReceivingAddressesP2PKH);
+    await DB.instance
+        .delete<dynamic>(key: 'receivingAddressesP2PKH', boxName: walletId);
+
+    final tempChangeAddressesP2PKH = DB.instance
+        .get<dynamic>(boxName: walletId, key: 'changeAddressesP2PKH');
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'changeAddressesP2PKH_BACKUP',
+        value: tempChangeAddressesP2PKH);
+    await DB.instance
+        .delete<dynamic>(key: 'changeAddressesP2PKH', boxName: walletId);
+
+    final tempReceivingIndexP2PKH =
+        DB.instance.get<dynamic>(boxName: walletId, key: 'receivingIndexP2PKH');
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'receivingIndexP2PKH_BACKUP',
+        value: tempReceivingIndexP2PKH);
+    await DB.instance
+        .delete<dynamic>(key: 'receivingIndexP2PKH', boxName: walletId);
+
+    final tempChangeIndexP2PKH =
+        DB.instance.get<dynamic>(boxName: walletId, key: 'changeIndexP2PKH');
+    await DB.instance.put<dynamic>(
+        boxName: walletId,
+        key: 'changeIndexP2PKH_BACKUP',
+        value: tempChangeIndexP2PKH);
+    await DB.instance
+        .delete<dynamic>(key: 'changeIndexP2PKH', boxName: walletId);
 
     // p2wpkh
     final tempReceivingAddressesP2WPKH = DB.instance
@@ -3407,20 +3395,20 @@ class ParticlWallet extends CoinServiceAPI {
         .delete<dynamic>(key: 'changeIndexP2WPKH', boxName: walletId);
 
     // P2PKH derivations
-    // final p2pkhReceiveDerivationsString =
-    //     await _secureStore.read(key: "${walletId}_receiveDerivationsP2PKH");
-    // final p2pkhChangeDerivationsString =
-    //     await _secureStore.read(key: "${walletId}_changeDerivationsP2PKH");
-    //
-    // await _secureStore.write(
-    //     key: "${walletId}_receiveDerivationsP2PKH_BACKUP",
-    //     value: p2pkhReceiveDerivationsString);
-    // await _secureStore.write(
-    //     key: "${walletId}_changeDerivationsP2PKH_BACKUP",
-    //     value: p2pkhChangeDerivationsString);
-    //
-    // await _secureStore.delete(key: "${walletId}_receiveDerivationsP2PKH");
-    // await _secureStore.delete(key: "${walletId}_changeDerivationsP2PKH");
+    final p2pkhReceiveDerivationsString =
+        await _secureStore.read(key: "${walletId}_receiveDerivationsP2PKH");
+    final p2pkhChangeDerivationsString =
+        await _secureStore.read(key: "${walletId}_changeDerivationsP2PKH");
+
+    await _secureStore.write(
+        key: "${walletId}_receiveDerivationsP2PKH_BACKUP",
+        value: p2pkhReceiveDerivationsString);
+    await _secureStore.write(
+        key: "${walletId}_changeDerivationsP2PKH_BACKUP",
+        value: p2pkhChangeDerivationsString);
+
+    await _secureStore.delete(key: "${walletId}_receiveDerivationsP2PKH");
+    await _secureStore.delete(key: "${walletId}_changeDerivationsP2PKH");
 
     // P2WPKH derivations
     final p2wpkhReceiveDerivationsString =
