@@ -294,6 +294,8 @@ class ParticlWallet extends CoinServiceAPI {
     } catch (err) {
       // Base58check decode fail
     }
+
+    // return DerivePathType.bip84;
     if (decodeBase58 != null) {
       if (decodeBase58[0] == _network.pubKeyHash) {
         // P2PKH
@@ -339,7 +341,6 @@ class ParticlWallet extends CoinServiceAPI {
             if (features['genesis_hash'] != GENESIS_HASH_MAINNET) {
               throw Exception("genesis hash does not match main net!");
             }
-            break;
             break;
           default:
             throw Exception(
@@ -936,15 +937,12 @@ class ParticlWallet extends CoinServiceAPI {
           Logging.instance.log(
               "Periodic refresh check for $walletId $walletName in object instance: $hashCode",
               level: LogLevel.Info);
-          // chain height check currently broken
-          // if ((await chainHeight) != (await storedChainHeight)) {
           if (await refreshIfThereIsNewData()) {
             await refresh();
             GlobalEventBus.instance.fire(UpdatedInBackgroundEvent(
                 "New data found in $walletId $walletName in background!",
                 walletId));
           }
-          // }
         });
       }
     } catch (error, strace) {
@@ -1233,12 +1231,12 @@ class ParticlWallet extends CoinServiceAPI {
     if (cachedTxData == null) {
       final data = await _fetchTransactionData();
       _transactionData = Future(() => data);
+    } else {
+      final transactions = cachedTxData!.getAllTransactions();
+      transactions[tx.txid] = tx;
+      cachedTxData = models.TransactionData.fromMap(transactions);
+      _transactionData = Future(() => cachedTxData!);
     }
-
-    final transactions = cachedTxData!.getAllTransactions();
-    transactions[tx.txid] = tx;
-    cachedTxData = models.TransactionData.fromMap(transactions);
-    _transactionData = Future(() => cachedTxData!);
   }
 
   @override
@@ -1491,38 +1489,6 @@ class ParticlWallet extends CoinServiceAPI {
       ),
     ]);
 
-    // // P2PKH
-    // _generateAddressForChain(0, 0, DerivePathType.bip44).then(
-    //   (initialReceivingAddressP2PKH) {
-    //     _addToAddressesArrayForChain(
-    //         initialReceivingAddressP2PKH, 0, DerivePathType.bip44);
-    //     this._currentReceivingAddressP2PKH =
-    //         Future(() => initialReceivingAddressP2PKH);
-    //   },
-    // );
-    // _generateAddressForChain(1, 0, DerivePathType.bip44)
-    //     .then((initialChangeAddressP2PKH) => _addToAddressesArrayForChain(
-    //           initialChangeAddressP2PKH,
-    //           1,
-    //           DerivePathType.bip44,
-    //         ));
-    //
-    // // P2SH
-    // _generateAddressForChain(0, 0, DerivePathType.bip49).then(
-    //   (initialReceivingAddressP2SH) {
-    //     _addToAddressesArrayForChain(
-    //         initialReceivingAddressP2SH, 0, DerivePathType.bip49);
-    //     this._currentReceivingAddressP2SH =
-    //         Future(() => initialReceivingAddressP2SH);
-    //   },
-    // );
-    // _generateAddressForChain(1, 0, DerivePathType.bip49)
-    //     .then((initialChangeAddressP2SH) => _addToAddressesArrayForChain(
-    //           initialChangeAddressP2SH,
-    //           1,
-    //           DerivePathType.bip49,
-    //         ));
-
     Logging.instance.log("_generateNewWalletFinished", level: LogLevel.Info);
   }
 
@@ -1583,7 +1549,6 @@ class ParticlWallet extends CoinServiceAPI {
         indexKey += "P2WPKH";
         break;
     }
-
     final newIndex =
         (DB.instance.get<dynamic>(boxName: walletId, key: indexKey)) + 1;
     await DB.instance
@@ -1657,6 +1622,7 @@ class ParticlWallet extends CoinServiceAPI {
   }) {
     String key;
     String chainId = chain == 0 ? "receive" : "change";
+
     switch (derivePathType) {
       case DerivePathType.bip44:
         key = "${walletId}_${chainId}DerivationsP2PKH";
@@ -3081,9 +3047,6 @@ class ParticlWallet extends CoinServiceAPI {
 
     // Add transaction inputs
     for (var i = 0; i < utxosToUse.length; i++) {
-      Logging.instance.log("UTXOs TO USE IS -----${utxosToUse[i].vout}",
-          level: LogLevel.Info, printFullLength: true);
-
       final txid = utxosToUse[i].txid;
       txb.addInput(txid, utxosToUse[i].vout, null,
           utxoSigningData[txid]["output"] as Uint8List, '');
@@ -3098,16 +3061,6 @@ class ParticlWallet extends CoinServiceAPI {
       // Sign the transaction accordingly
       for (var i = 0; i < utxosToUse.length; i++) {
         final txid = utxosToUse[i].txid;
-        Logging.instance.log("WITNESS VALUE IS -----${utxosToUse[i].value}",
-            level: LogLevel.Info, printFullLength: true);
-
-        Logging.instance.log(
-            "REDEEM SCRIPT IS -----${utxoSigningData[txid]["redeemScript"]}",
-            level: LogLevel.Info,
-            printFullLength: true);
-
-        Logging.instance.log("AND THIS DATA IS -----${utxoSigningData[txid]}",
-            level: LogLevel.Info, printFullLength: true);
         txb.sign(
             vin: i,
             keyPair: utxoSigningData[txid]["keyPair"] as ECPair,
@@ -3123,14 +3076,19 @@ class ParticlWallet extends CoinServiceAPI {
     final builtTx = txb.build();
     final vSize = builtTx.virtualSize();
 
-    print("BUILT TX IS ${builtTx.toHex().toString()}");
-
-    return {"hex": builtTx.toHex(), "vSize": vSize};
-    String hexBefore = builtTx.toHex().toString();
-
-    String strippedTrailingBytes =
-        hexBefore.replaceAll(RegExp(r"([.]*0+)(?!.*\d)"), "");
-    return {"hex": strippedTrailingBytes, "vSize": vSize};
+    String hexBefore = builtTx.toHex(isParticl: true).toString();
+    if (hexBefore.endsWith('000000')) {
+      String stripped = hexBefore.substring(0, hexBefore.length - 6);
+      return {"hex": stripped, "vSize": vSize};
+    } else if (hexBefore.endsWith('0000')) {
+      String stripped = hexBefore.substring(0, hexBefore.length - 4);
+      return {"hex": stripped, "vSize": vSize};
+    } else if (hexBefore.endsWith('00')) {
+      String stripped = hexBefore.substring(0, hexBefore.length - 2);
+      return {"hex": stripped, "vSize": vSize};
+    } else {
+      return {"hex": hexBefore, "vSize": vSize};
+    }
   }
 
   @override

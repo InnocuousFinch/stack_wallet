@@ -109,8 +109,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "65eb920719c8f7895c5402a07497647e7fc4b346"
-      resolved-ref: "65eb920719c8f7895c5402a07497647e7fc4b346"
+      ref: "004d6f82dff7389b561e5078b4649adcd2d9c10f"
+      resolved-ref: "004d6f82dff7389b561e5078b4649adcd2d9c10f"
       url: "https://github.com/cypherstack/bitcoindart.git"
     source: git
     version: "3.0.1"
@@ -379,7 +379,7 @@ packages:
       name: decimal
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.3.1"
+    version: "2.3.2"
   dependency_validator:
     dependency: "direct dev"
     description:
@@ -1188,7 +1188,7 @@ packages:
       name: rational
       url: "https://pub.dartlang.org"
     source: hosted
-    version: "2.2.1"
+    version: "2.2.2"
   riverpod:
     dependency: transitive
     description:
