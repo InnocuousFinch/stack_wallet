@@ -13,7 +13,7 @@ import 'package:decimal/decimal.dart';
 import 'package:devicelocale/devicelocale.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart';
-import 'package:particldart/bitcoindart.dart';
+import 'package:particldart/particldart.dart';
 import 'package:stackwallet/electrumx_rpc/cached_electrumx.dart';
 import 'package:stackwallet/electrumx_rpc/electrumx.dart';
 import 'package:stackwallet/hive/db.dart';
