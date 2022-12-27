@@ -50,9 +50,10 @@ class Manager with ChangeNotifier {
       _currentWallet.onIsActiveWalletChanged?.call(isActive);
       //todo: check if print needed
       debugPrint(
-          "wallet ID: ${_currentWallet.walletId} is active set to: $isActive");
+          "wallet ID: ${_currentWallet.walletId} name: $walletName is active set to: $isActive");
     } else {
-      debugPrint("wallet ID: ${_currentWallet.walletId} is still: $isActive");
+      debugPrint(
+          "wallet ID: ${_currentWallet.walletId} name: $walletName is still: $isActive");
     }
   }
 

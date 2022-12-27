@@ -175,7 +175,7 @@ class _WalletViewState extends ConsumerState<WalletView> {
             Navigator.of(context).popUntil(
               ModalRoute.withName(HomeView.routeName),
             );
-            _logout();
+            await _logout();
             return false;
           },
           child: const StackDialog(title: "Tap back again to exit wallet"),
@@ -190,7 +190,7 @@ class _WalletViewState extends ConsumerState<WalletView> {
     return false;
   }
 
-  void _logout() async {
+  Future<void> _logout() async {
     if (_shouldDisableAutoSyncOnLogOut) {
       // disable auto sync if it was enabled only when loading wallet
       ref.read(managerProvider).shouldAutoSync = false;
@@ -385,9 +385,11 @@ class _WalletViewState extends ConsumerState<WalletView> {
               Theme.of(context).extension<StackColors>()!.background,
           appBar: AppBar(
             leading: AppBarBackButton(
-              onPressed: () {
-                _logout();
-                Navigator.of(context).pop();
+              onPressed: () async {
+                await _logout();
+                if (mounted) {
+                  Navigator.of(context).pop();
+                }
               },
             ),
             titleSpacing: 0,
