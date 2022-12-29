@@ -1,16 +1,6 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:cw_core/monero_transaction_priority.dart';
-import 'package:cw_core/node.dart';
-import 'package:cw_core/pending_transaction.dart';
-import 'package:cw_core/sync_status.dart';
-import 'package:cw_core/transaction_direction.dart';
-import 'package:cw_core/wallet_base.dart';
-import 'package:cw_core/wallet_credentials.dart';
-import 'package:cw_core/wallet_info.dart';
-import 'package:cw_core/wallet_service.dart';
-import 'package:cw_core/wallet_type.dart';
 import 'package:cw_wownero/api/exceptions/creation_transaction_exception.dart';
 import 'package:cw_wownero/api/wallet.dart';
 import 'package:cw_wownero/pending_wownero_transaction.dart';
@@ -49,6 +39,16 @@ import 'package:stackwallet/utilities/format.dart';
 import 'package:stackwallet/utilities/logger.dart';
 import 'package:stackwallet/utilities/prefs.dart';
 import 'package:stackwallet/utilities/stack_file_system.dart';
+import 'package:wow_cw_core/monero_transaction_priority.dart';
+import 'package:wow_cw_core/node.dart';
+import 'package:wow_cw_core/pending_transaction.dart';
+import 'package:wow_cw_core/sync_status.dart';
+import 'package:wow_cw_core/transaction_direction.dart';
+import 'package:wow_cw_core/wallet_base.dart';
+import 'package:wow_cw_core/wallet_credentials.dart';
+import 'package:wow_cw_core/wallet_info.dart';
+import 'package:wow_cw_core/wallet_service.dart';
+import 'package:wow_cw_core/wallet_type.dart';
 
 const int MINIMUM_CONFIRMATIONS = 10;
 
