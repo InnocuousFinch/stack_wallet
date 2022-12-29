@@ -341,7 +341,7 @@ packages:
   cw_wownero:
     dependency: "direct main"
     description:
-      path: "crypto_plugins/flutter_libmonero/cw_wownero"
+      path: "crypto_plugins/flutter_libwownero/cw_wownero"
       relative: true
     source: path
     version: "0.0.1"
