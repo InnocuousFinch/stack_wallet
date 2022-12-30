@@ -11,6 +11,7 @@ import 'package:stackwallet/models/trade_wallet_lookup.dart';
 import 'package:stackwallet/services/wallets_service.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
 import 'package:stackwallet/utilities/logger.dart';
+import 'package:wow_cw_core/wallet_info.dart' as wow;
 
 class DB {
   static const String boxNameAddressBook = "addressBook";
@@ -53,6 +54,7 @@ class DB {
   Box<String>? _boxTradeNotes;
   Box<String>? _boxFavoriteWallets;
   Box<xmr.WalletInfo>? _walletInfoSource;
+  Box<wow.WalletInfo>? wow_walletInfoSource;
   Box<dynamic>? _boxPrefs;
   Box<TradeWalletLookup>? _boxTradeLookup;
   Box<dynamic>? _boxDBInfo;
@@ -66,6 +68,9 @@ class DB {
 
   // exposed for monero
   Box<xmr.WalletInfo> get moneroWalletInfoBox => _walletInfoSource!;
+
+  // exposed for wownero
+  Box<wow.WalletInfo> get wowneroWalletInfoBox => wow_walletInfoSource!;
 
   // mutex for stack backup
   final mutex = Mutex();

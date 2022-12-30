@@ -46,7 +46,7 @@ import 'package:wow_cw_core/sync_status.dart';
 import 'package:wow_cw_core/transaction_direction.dart';
 import 'package:wow_cw_core/wallet_base.dart';
 import 'package:wow_cw_core/wallet_credentials.dart';
-import 'package:wow_cw_core/wallet_info.dart';
+import 'package:wow_cw_core/wallet_info.dart' as wownero_wallet;
 import 'package:wow_cw_core/wallet_service.dart';
 import 'package:wow_cw_core/wallet_type.dart';
 
@@ -675,9 +675,9 @@ class WowneroWallet extends CoinServiceAPI {
 
     // TODO: Wallet Service may need to be switched to Wownero
     walletService =
-        wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
     keysStorage = KeyService(_secureStore);
-    WalletInfo walletInfo;
+    wownero_wallet.WalletInfo walletInfo;
     WalletCredentials credentials;
     try {
       String name = _walletId;
@@ -687,7 +687,7 @@ class WowneroWallet extends CoinServiceAPI {
       credentials = wownero.createWowneroNewWalletCredentials(
           name: name, language: "English", seedWordsLength: seedWordsLength);
 
-      walletInfo = WalletInfo.external(
+      walletInfo = wownero_wallet.WalletInfo.external(
           id: WalletBase.idFor(name, WalletType.wownero),
           name: name,
           type: WalletType.wownero,
@@ -724,8 +724,8 @@ class WowneroWallet extends CoinServiceAPI {
           key: '${_walletId}_mnemonic', value: wallet?.seed.trim());
 
       walletInfo.address = wallet?.walletAddresses.address;
-      await DB.instance
-          .add<WalletInfo>(boxName: WalletInfo.boxName, value: walletInfo);
+      await DB.instance.add<wownero_wallet.WalletInfo>(
+          boxName: wownero_wallet.WalletInfo.boxName, value: walletInfo);
       walletBase?.close();
       walletBase = wallet as WowneroWalletBase;
     } catch (e, s) {
@@ -792,7 +792,7 @@ class WowneroWallet extends CoinServiceAPI {
     //   return false;
     // }
     walletService =
-        wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
     keysStorage = KeyService(_secureStore);
 
     await _generateNewWallet(seedWordsLength: seedWordsLength);
@@ -837,7 +837,7 @@ class WowneroWallet extends CoinServiceAPI {
     }
 
     walletService =
-        wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+        wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
     keysStorage = KeyService(_secureStore);
 
     await _prefs.init();
@@ -899,7 +899,7 @@ class WowneroWallet extends CoinServiceAPI {
   WowneroWalletBase? walletBase;
   WalletCreationService? _walletCreationService;
 
-  String toStringForinfo(WalletInfo info) {
+  String toStringForinfo(wownero_wallet.WalletInfo info) {
     return "id: ${info.id}  name: ${info.name} type: ${info.type} recovery: ${info.isRecovery}"
         " restoreheight: ${info.restoreHeight} timestamp: ${info.timestamp} dirPath: ${info.dirPath} "
         "path: ${info.path} address: ${info.address} addresses: ${info.addresses}";
@@ -986,9 +986,9 @@ class WowneroWallet extends CoinServiceAPI {
           .put<dynamic>(boxName: walletId, key: "restoreHeight", value: height);
 
       walletService =
-          wownero.createWowneroWalletService(DB.instance.moneroWalletInfoBox);
+          wownero.createWowneroWalletService(DB.instance.wowneroWalletInfoBox);
       keysStorage = KeyService(_secureStore);
-      WalletInfo walletInfo;
+      wownero_wallet.WalletInfo walletInfo;
       WalletCredentials credentials;
       String name = _walletId;
       final dirPath =
@@ -1000,7 +1000,7 @@ class WowneroWallet extends CoinServiceAPI {
         mnemonic: mnemonic.trim(),
       );
       try {
-        walletInfo = WalletInfo.external(
+        walletInfo = wownero_wallet.WalletInfo.external(
             id: WalletBase.idFor(name, WalletType.wownero),
             name: name,
             type: WalletType.wownero,
@@ -1023,8 +1023,8 @@ class WowneroWallet extends CoinServiceAPI {
         final wallet =
             await _walletCreationService!.restoreFromSeed(credentials);
         walletInfo.address = wallet.walletAddresses.address;
-        await DB.instance
-            .add<WalletInfo>(boxName: WalletInfo.boxName, value: walletInfo);
+        await DB.instance.add<wownero_wallet.WalletInfo>(
+            boxName: wownero_wallet.WalletInfo.boxName, value: walletInfo);
         walletBase?.close();
         walletBase = wallet as WowneroWalletBase;
         await DB.instance.put<dynamic>(
