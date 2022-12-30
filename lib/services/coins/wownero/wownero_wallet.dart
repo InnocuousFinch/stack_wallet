@@ -9,11 +9,11 @@ import 'package:cw_wownero/wownero_wallet.dart';
 import 'package:dart_numerics/dart_numerics.dart';
 import 'package:decimal/decimal.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_libmonero/core/key_service.dart';
-import 'package:flutter_libmonero/core/wallet_creation_service.dart';
-import 'package:flutter_libmonero/view_model/send/output.dart'
+import 'package:flutter_libwownero/core/key_service.dart';
+import 'package:flutter_libwownero/core/wallet_creation_service.dart';
+import 'package:flutter_libwownero/view_model/send/output.dart'
     as wownero_output;
-import 'package:flutter_libmonero/wownero/wownero.dart';
+import 'package:flutter_libwownero/wownero/wownero.dart';
 import 'package:http/http.dart';
 import 'package:mutex/mutex.dart';
 import 'package:stackwallet/hive/db.dart';
