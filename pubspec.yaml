@@ -28,6 +28,9 @@ dependencies:
   flutter_libmonero:
     path: ./crypto_plugins/flutter_libmonero
 
+  flutter_libwownero:
+    path: ./crypto_plugins/flutter_libwownero
+
   cw_monero:
     path: ./crypto_plugins/flutter_libmonero/cw_monero
 
