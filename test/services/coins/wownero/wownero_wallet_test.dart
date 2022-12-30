@@ -12,7 +12,7 @@ import 'package:cw_core/wallet_type.dart';
 import 'package:cw_wownero/wownero_wallet.dart';
 import 'package:flutter_libmonero/core/key_service.dart';
 import 'package:flutter_libmonero/core/wallet_creation_service.dart';
-import 'package:flutter_libmonero/wownero/wownero.dart';
+import 'package:flutter_libwownero/wownero/wownero.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:hive_test/hive_test.dart';
