@@ -143,6 +143,8 @@ class DB {
     _boxTradeLookup = await Hive.openBox<TradeWalletLookup>(boxNameTradeLookup);
     _walletInfoSource =
         await Hive.openBox<xmr.WalletInfo>(xmr.WalletInfo.boxName);
+    wow_walletInfoSource =
+        await Hive.openBox<wow.WalletInfo>(wow.WalletInfo.boxName);
     _boxFavoriteWallets = await Hive.openBox<String>(boxNameFavoriteWallets);
 
     await Future.wait([
