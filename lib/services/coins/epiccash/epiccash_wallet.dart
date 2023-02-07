@@ -341,8 +341,10 @@ Future<bool> postSlate(String receiveAddress, String slate) async {
     );
 
     // TODO: should the following be removed for security reasons in production?
+    // probably
     Logging.instance.log(epicpost.statusCode.toString(), level: LogLevel.Info);
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
+
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
       return true;
@@ -375,6 +377,7 @@ Future<EpicCashResponse<List<dynamic>>> getSlates(
     );
 
     // TODO: should the following be removed for security reasons in production?
+    // probably
     Logging.instance.log(epicpost.statusCode.toString(), level: LogLevel.Info);
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
     final response = jsonDecode(epicpost.body.toString());
@@ -620,6 +623,7 @@ class EpicCashWallet extends CoinServiceAPI
   }
 
   Future<String> allWalletBalances() async {
+    Logging.instance.log("request wallet balances", level: LogLevel.Info);
     final wallet = await _secureStore.read(key: '${_walletId}_wallet');
     const refreshFromNode = 0;
 
