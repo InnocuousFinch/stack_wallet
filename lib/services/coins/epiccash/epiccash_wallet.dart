@@ -543,8 +543,7 @@ Future<EpicCashResponse<bool>> deleteSlate(
       return EpicCashResponse(value: false);
     }
   } catch (e, s) {
-    Logging.instance
-        .log("deleteCancels exception: $e $s", level: LogLevel.Error);
+    Logging.instance.log("deleteSlate exception: $e $s", level: LogLevel.Error);
     return EpicCashResponse(
       exception: EpicCashException(
         "$e $s",
