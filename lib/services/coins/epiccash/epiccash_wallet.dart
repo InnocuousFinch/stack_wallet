@@ -432,7 +432,9 @@ Future<bool> postCancel(String receiveAddress, String slateId,
   }
 }
 
-Future<dynamic> getCancels(String receiveAddress, String signature) async {
+// TODO make EpicCashCancel model
+Future<EpicCashResponse<List<dynamic>>> getCancels(
+    String receiveAddress, String signature) async {
   Logging.instance.log("getCancels", level: LogLevel.Info);
   final Client client = Client();
   try {
@@ -449,22 +451,29 @@ Future<dynamic> getCancels(String receiveAddress, String signature) async {
       }),
     );
     // TODO: should the following be removed for security reasons in production?
+    // probably
     Logging.instance.log(epicpost.statusCode.toString(), level: LogLevel.Info);
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
+
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return response['canceled_slates'];
+      return EpicCashResponse(value: response['canceled_slates'] ?? []);
     } else {
-      return response['error'];
+      throw Exception("${response['error']}");
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Error);
-    return 'Error $e $s';
+    Logging.instance.log("getCancels exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
 Future<dynamic> deleteCancels(
-    String receiveAddress, String signature, String slate) async {
+    String receiveAddress, String? signature, String slate) async {
   Logging.instance.log("deleteCancels", level: LogLevel.Info);
   final Client client = Client();
   try {
@@ -477,13 +486,15 @@ Future<dynamic> deleteCancels(
         "jsonrpc": "2.0",
         "id": "0",
         'receivingAddress': receiveAddress,
-        'signature': signature,
+        'signature': signature ?? "",
         'slate': slate,
       }),
     );
     // TODO: should the following be removed for security reasons in production?
+    // probably
     Logging.instance.log(epicpost.statusCode.toString(), level: LogLevel.Info);
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
+
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
       return true;
@@ -1799,10 +1810,19 @@ class EpicCashWallet extends CoinServiceAPI
             level: LogLevel.Info);
       });
       String? signature = subscribeRequest['signature'] as String?;
-      final cancels = await getCancels(receiveAddress.value, signature!);
+
+      List<dynamic> cancels = [];
+      try {
+        final EpicCashResponse<List<dynamic>> _cancels =
+            await getCancels(receiveAddress.value, signature!);
+        cancels = _cancels.value ?? [];
+      } catch (e, s) {
+        Logging.instance
+            .log("processAllCancels exception: $e $s", level: LogLevel.Error);
+      }
 
       final slatesToCommits = await getSlatesToCommits();
-      for (final cancel in cancels as List<dynamic>) {
+      for (final cancel in cancels) {
         final txSlateId = cancel.keys.first as String;
         if (slatesToCommits[txSlateId] == null) {
           continue;
