@@ -1621,7 +1621,8 @@ class EpicCashWallet extends CoinServiceAPI
     }
   }
 
-  Future<bool> putSlatesToCommits(String slateMessage, String encoded) async {
+  Future<EpicCashResponse<bool>> putSlatesToCommits(
+      String slateMessage, String encoded) async {
     try {
       var slatesToCommits = await getSlatesToCommits();
       final slate = jsonDecode(slateMessage);
@@ -1631,7 +1632,7 @@ class EpicCashWallet extends CoinServiceAPI
       if (slatesToCommits[slateId] != null &&
           (slatesToCommits[slateId] as Map).isNotEmpty) {
         // This happens when the sender receives the response.
-        return true;
+        return EpicCashResponse(value: true);
       }
       final commitId = part2['tx']['body']['outputs'][0]['commit'];
 
@@ -1645,10 +1646,10 @@ class EpicCashWallet extends CoinServiceAPI
         "to": to,
       };
       await epicUpdateSlatesToCommits(slatesToCommits);
-      return true;
+      return EpicCashResponse(value: true);
     } catch (e, s) {
       Logging.instance.log("$e $s", level: LogLevel.Error);
-      return false;
+      return EpicCashResponse(value: false);
     }
   }
 
@@ -1736,7 +1737,19 @@ class EpicCashWallet extends CoinServiceAPI
           //Process slates
           var decodedResponse = json.decode(decodedSlate as String);
           String slateMessage = decodedResponse[0] as String;
-          await putSlatesToCommits(slateMessage, encoded);
+
+          try {
+            EpicCashResponse<bool> _putSlatesToCommits =
+                await putSlatesToCommits(slateMessage, encoded);
+
+            Logging.instance.log("PUT_SLATES_TO_COMMITS $_putSlatesToCommits",
+                printFullLength: true, level: LogLevel.Info);
+          } catch (e, s) {
+            Logging.instance.log(
+                "processAllSlates exception from putSlatesToCommits: $e $s",
+                level: LogLevel.Error);
+          }
+
           String slateSender = decodedResponse[1] as String;
           Logging.instance.log("SLATE_MESSAGE $slateMessage",
               printFullLength: true, level: LogLevel.Info);
