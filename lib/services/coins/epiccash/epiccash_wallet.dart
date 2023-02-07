@@ -1666,7 +1666,7 @@ class EpicCashWallet extends CoinServiceAPI
     }
   }
 
-  Future<bool> processAllSlates() async {
+  Future<EpicCashResponse<bool>> processAllSlates() async {
     final int? receivingIndex = epicGetReceivingIndex();
     for (int currentReceivingIndex = 0;
         receivingIndex != null && currentReceivingIndex <= receivingIndex;
@@ -1801,6 +1801,7 @@ class EpicCashWallet extends CoinServiceAPI
                       "processAllSlates exception from deleteSlate 1/4: $e $s",
                       level: LogLevel.Error);
                   return EpicCashResponse(
+                    value: false,
                     exception: EpicCashException(
                       "$e $s",
                       EpicCashExceptionType.generic,
@@ -1829,6 +1830,7 @@ class EpicCashWallet extends CoinServiceAPI
                       "processAllSlates exception from deleteSlate 2/4: $e $s",
                       level: LogLevel.Error);
                   return EpicCashResponse(
+                    value: false,
                     exception: EpicCashException(
                       "$e $s",
                       EpicCashExceptionType.generic,
@@ -1863,6 +1865,7 @@ class EpicCashWallet extends CoinServiceAPI
                         "processAllSlates exception from postSlate: $e $s",
                         level: LogLevel.Error);
                     return EpicCashResponse(
+                      value: false,
                       exception: EpicCashException(
                         "$e $s",
                         EpicCashExceptionType.generic,
@@ -1883,6 +1886,7 @@ class EpicCashWallet extends CoinServiceAPI
                         "processAllSlates exception from deleteSlate 3/4: $e $s",
                         level: LogLevel.Error);
                     return EpicCashResponse(
+                      value: false,
                       exception: EpicCashException(
                         "$e $s",
                         EpicCashExceptionType.generic,
@@ -1916,6 +1920,7 @@ class EpicCashWallet extends CoinServiceAPI
                         "processAllSlates exception from deleteSlate 4/4: $e $s",
                         level: LogLevel.Error);
                     return EpicCashResponse(
+                      value: false,
                       exception: EpicCashException(
                         "$e $s",
                         EpicCashExceptionType.generic,
@@ -1931,7 +1936,7 @@ class EpicCashWallet extends CoinServiceAPI
               }
             } catch (e, s) {
               Logging.instance.log("$e\n$s", level: LogLevel.Info);
-              return false;
+              return EpicCashResponse(value: false);
             }
             stop(receivePort);
             Logging.instance
@@ -1940,7 +1945,7 @@ class EpicCashWallet extends CoinServiceAPI
         }
       }
     }
-    return true;
+    return EpicCashResponse(value: true);
   }
 
   Future<EpicCashResponse<bool>> processAllCancels() async {
@@ -2098,7 +2103,17 @@ class EpicCashWallet extends CoinServiceAPI
         throw Exception("startScans exception: $e $s");
       }
 
-      await processAllSlates();
+      try {
+        EpicCashResponse<bool> _slatesProcessed = await processAllSlates();
+
+        if (_slatesProcessed.value == false) {
+          throw Exception(
+              "refresh exception from processAllSlates: ${_slatesProcessed!.exception}");
+        }
+      } catch (e, s) {
+        Logging.instance.log("refresh exception from processAllSlates: $e $s",
+            level: LogLevel.Error);
+      }
       await processAllCancels();
 
       unawaited(startSync());
