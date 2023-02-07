@@ -830,8 +830,18 @@ class EpicCashWallet extends CoinServiceAPI
         throw BadEpicHttpAddressException(message: sendTx);
       }
 
-      await putSendToAddresses(sendTx);
-
+      try {
+        EpicCashResponse<bool> _putSendToAddresses =
+            await putSendToAddresses(sendTx);
+        if (_putSendToAddresses.value == false) {
+          throw Exception("_putSendToAddresses failed");
+        }
+      } catch (e, s) {
+        Logging.instance.log(
+            "confirmSend exception from _putSendToAddresses: $e $s",
+            level: LogLevel.Error);
+        throw Exception("_putSendToAddresses exception: $e $s");
+      }
       Logging.instance.log("CONFIRM_RESULT_IS $sendTx", level: LogLevel.Info);
 
       final decodeData = json.decode(sendTx);
@@ -999,17 +1009,17 @@ class EpicCashWallet extends CoinServiceAPI
           refreshMutex = false;
           GlobalEventBus.instance.fire(
             NodeConnectionStatusChangedEvent(
-            NodeConnectionStatus.disconnected,
-            walletId,
-            coin,
-          ),
-        );
-        GlobalEventBus.instance.fire(
-          WalletSyncStatusChangedEvent(
-            WalletSyncStatus.unableToSync,
-            walletId,
-            coin,
-          ),
+              NodeConnectionStatus.disconnected,
+              walletId,
+              coin,
+            ),
+          );
+          GlobalEventBus.instance.fire(
+            WalletSyncStatusChangedEvent(
+              WalletSyncStatus.unableToSync,
+              walletId,
+              coin,
+            ),
           );
           return;
         }
@@ -1578,7 +1588,7 @@ class EpicCashWallet extends CoinServiceAPI
     }
   }
 
-  Future<bool> putSendToAddresses(String slateMessage) async {
+  Future<EpicCashResponse<bool>> putSendToAddresses(String slateMessage) async {
     try {
       var slatesToCommits = await getSlatesToCommits();
       final slate0 = jsonDecode(slateMessage);
@@ -1598,10 +1608,16 @@ class EpicCashWallet extends CoinServiceAPI
         "to": to,
       };
       await epicUpdateSlatesToCommits(slatesToCommits);
-      return true;
+      return EpicCashResponse(value: true);
     } catch (e, s) {
       Logging.instance.log("$e $s", level: LogLevel.Error);
-      return false;
+      return EpicCashResponse(
+        value: false,
+        exception: EpicCashException(
+          "$e $s",
+          EpicCashExceptionType.generic,
+        ),
+      );
     }
   }
 
@@ -2038,17 +2054,17 @@ class EpicCashWallet extends CoinServiceAPI
           refreshMutex = false;
           GlobalEventBus.instance.fire(
             NodeConnectionStatusChangedEvent(
-            NodeConnectionStatus.disconnected,
-            walletId,
-            coin,
-          ),
-        );
-        GlobalEventBus.instance.fire(
-          WalletSyncStatusChangedEvent(
-            WalletSyncStatus.unableToSync,
-            walletId,
-            coin,
-          ),
+              NodeConnectionStatus.disconnected,
+              walletId,
+              coin,
+            ),
+          );
+          GlobalEventBus.instance.fire(
+            WalletSyncStatusChangedEvent(
+              WalletSyncStatus.unableToSync,
+              walletId,
+              coin,
+            ),
           );
           return;
         }
