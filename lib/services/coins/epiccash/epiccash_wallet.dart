@@ -992,10 +992,13 @@ class EpicCashWallet extends CoinServiceAPI
 
       await epicUpdateLastScannedBlock(await getRestoreHeight());
 
-      if (!await startScans()) {
-        refreshMutex = false;
-        GlobalEventBus.instance.fire(
-          NodeConnectionStatusChangedEvent(
+      try {
+        EpicCashResponse<bool> scansStarted = await startScans();
+
+        if (scansStarted.value == false) {
+          refreshMutex = false;
+          GlobalEventBus.instance.fire(
+            NodeConnectionStatusChangedEvent(
             NodeConnectionStatus.disconnected,
             walletId,
             coin,
@@ -1007,8 +1010,11 @@ class EpicCashWallet extends CoinServiceAPI
             walletId,
             coin,
           ),
-        );
-        return;
+          );
+          return;
+        }
+      } catch (e, s) {
+        throw Exception("startScans exception: $e $s");
       }
       await refresh();
       GlobalEventBus.instance.fire(
@@ -1020,8 +1026,8 @@ class EpicCashWallet extends CoinServiceAPI
       );
     } catch (e, s) {
       refreshMutex = false;
-      Logging.instance
-          .log("$e, $s", level: LogLevel.Error, printFullLength: true);
+      Logging.instance.log("fullRescan exception: $e $s",
+          level: LogLevel.Error, printFullLength: true);
     }
     refreshMutex = false;
     return;
@@ -1340,7 +1346,7 @@ class EpicCashWallet extends CoinServiceAPI
     // TODO: refresh anything that needs to be refreshed/updated due to epicbox info changed
   }
 
-  Future<bool> startScans() async {
+  Future<EpicCashResponse<bool>> startScans() async {
     try {
       final wallet = await _secureStore.read(key: '${_walletId}_wallet');
 
@@ -1383,10 +1389,16 @@ class EpicCashWallet extends CoinServiceAPI
         await getSyncPercent;
       }
       Logging.instance.log("successfully at the tip", level: LogLevel.Info);
-      return true;
+      return EpicCashResponse(value: true);
     } catch (e, s) {
-      Logging.instance.log("$e, $s", level: LogLevel.Warning);
-      return false;
+      Logging.instance
+          .log("startScans exception: $e $s", level: LogLevel.Error);
+      return EpicCashResponse(
+        exception: EpicCashException(
+          "$e $s",
+          EpicCashExceptionType.generic,
+        ),
+      );
     }
   }
 
@@ -2019,10 +2031,13 @@ class EpicCashWallet extends CoinServiceAPI
       final int curAdd = await setCurrentIndex();
       await _getReceivingAddressForIndex(curAdd);
 
-      if (!await startScans()) {
-        refreshMutex = false;
-        GlobalEventBus.instance.fire(
-          NodeConnectionStatusChangedEvent(
+      try {
+        EpicCashResponse<bool> scansStarted = await startScans();
+
+        if (scansStarted.value == false) {
+          refreshMutex = false;
+          GlobalEventBus.instance.fire(
+            NodeConnectionStatusChangedEvent(
             NodeConnectionStatus.disconnected,
             walletId,
             coin,
@@ -2034,8 +2049,11 @@ class EpicCashWallet extends CoinServiceAPI
             walletId,
             coin,
           ),
-        );
-        return;
+          );
+          return;
+        }
+      } catch (e, s) {
+        throw Exception("startScans exception: $e $s");
       }
 
       await processAllSlates();
