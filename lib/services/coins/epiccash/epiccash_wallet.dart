@@ -1634,9 +1634,10 @@ class EpicCashWallet extends CoinServiceAPI
       // TODO make EpicCashSlate model
       List<dynamic> unprocessedSlates = [];
       try {
-        final EpicCashResponse<List<dynamic>> newSlates = await getSlates(
-            currentAddress.value, subscribeRequest['signature'] as String);
-        unprocessedSlates = newSlates.value ?? [];
+        final EpicCashResponse<List<dynamic>> _unprocessedSlates =
+            await getSlates(
+                currentAddress.value, subscribeRequest['signature'] as String);
+        unprocessedSlates = _unprocessedSlates.value ?? [];
       } catch (e, s) {
         Logging.instance
             .log("processAllSlates exception: $e $s", level: LogLevel.Error);
