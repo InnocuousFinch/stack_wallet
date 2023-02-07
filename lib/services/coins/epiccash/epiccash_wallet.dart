@@ -388,7 +388,7 @@ Future<EpicCashResponse<List<dynamic>>> getSlates(
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return EpicCashResponse(value: response['slates']);
+      return EpicCashResponse(value: response['slates'] as List<dynamic>?);
     } else {
       throw Exception("${response['error']}");
     }
@@ -463,7 +463,8 @@ Future<EpicCashResponse<List<dynamic>>> getCancels(
 
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return EpicCashResponse(value: response['canceled_slates'] ?? []);
+      return EpicCashResponse(
+          value: response['canceled_slates'] as List<dynamic>?);
     } else {
       throw Exception("${response['error']}");
     }
