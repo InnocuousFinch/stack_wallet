@@ -513,7 +513,7 @@ Future<EpicCashResponse<bool>> deleteCancels(
   }
 }
 
-Future<dynamic> deleteSlate(
+Future<EpicCashResponse<bool>> deleteSlate(
     String receiveAddress, String signature, String slate) async {
   Logging.instance.log("deleteSlate", level: LogLevel.Info);
   final Client client = Client();
@@ -532,17 +532,25 @@ Future<dynamic> deleteSlate(
       }),
     );
     // TODO: should the following be removed for security reasons in production?
+    // probably
     Logging.instance.log(epicpost.statusCode.toString(), level: LogLevel.Info);
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
+
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return true;
+      return EpicCashResponse(value: true);
     } else {
-      return false;
+      return EpicCashResponse(value: false);
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Info);
-    return 'Error $e $s';
+    Logging.instance
+        .log("deleteCancels exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
@@ -1714,19 +1722,53 @@ class EpicCashWallet extends CoinServiceAPI
               if (response == "") {
                 Logging.instance.log("response: ${response.runtimeType}",
                     level: LogLevel.Info);
-                await deleteSlate(currentAddress.value,
-                    subscribeRequest['signature'] as String, slate as String);
+                try {
+                  EpicCashResponse<bool> deleted = await deleteSlate(
+                      currentAddress.value,
+                      subscribeRequest['signature'] as String,
+                      slate as String);
+                  if (deleted.value == false) {
+                    throw Exception("failed to delete slate");
+                  }
+                } catch (e, s) {
+                  Logging.instance.log(
+                      "processAllSlates exception from deleteSlate 1/4: $e $s",
+                      level: LogLevel.Error);
+                  return EpicCashResponse(
+                    exception: EpicCashException(
+                      "$e $s",
+                      EpicCashExceptionType.generic,
+                    ),
+                  );
+                }
               }
 
               if (response
                   .contains("Error Wallet store error: DB Not Found Error")) {
-                //Already processed - to be deleted
+                // Already processed - to be deleted
                 Logging.instance
                     .log("DELETING_PROCESSED_SLATE", level: LogLevel.Info);
-                final slateDelete = await deleteSlate(currentAddress.value,
-                    subscribeRequest['signature'] as String, slate as String);
-                Logging.instance.log("DELETE_SLATE_RESPONSE $slateDelete",
-                    level: LogLevel.Info);
+                try {
+                  final EpicCashResponse<bool> deleted = await deleteSlate(
+                      currentAddress.value,
+                      subscribeRequest['signature'] as String,
+                      slate as String);
+                  Logging.instance.log("DELETE_SLATE_RESPONSE ${deleted.value}",
+                      level: LogLevel.Info);
+                  if (deleted.value == false) {
+                    throw Exception("failed to delete slate");
+                  }
+                } catch (e, s) {
+                  Logging.instance.log(
+                      "processAllSlates exception from deleteSlate 2/4: $e $s",
+                      level: LogLevel.Error);
+                  return EpicCashResponse(
+                    exception: EpicCashException(
+                      "$e $s",
+                      EpicCashExceptionType.generic,
+                    ),
+                  );
+                }
               } else {
                 var decodedResponse = json.decode(response);
                 final processStatus = json.decode(decodedResponse[0] as String);
@@ -1743,8 +1785,26 @@ class EpicCashWallet extends CoinServiceAPI
                   final postSlateToServer =
                       await postSlate(slateSender, encryptedSlate);
 
-                  await deleteSlate(currentAddress.value,
-                      subscribeRequest['signature'] as String, slate as String);
+                  try {
+                    EpicCashResponse<bool> deleted = await deleteSlate(
+                        currentAddress.value,
+                        subscribeRequest['signature'] as String,
+                        slate as String);
+                    if (deleted.value == false) {
+                      throw Exception("failed to delete slate");
+                    }
+                  } catch (e, s) {
+                    Logging.instance.log(
+                        "processAllSlates exception from deleteSlate 3/4: $e $s",
+                        level: LogLevel.Error);
+                    return EpicCashResponse(
+                      exception: EpicCashException(
+                        "$e $s",
+                        EpicCashExceptionType.generic,
+                      ),
+                    );
+                  }
+
                   Logging.instance.log("POST_SLATE_RESPONSE $postSlateToServer",
                       level: LogLevel.Info);
                 } else {
@@ -1760,8 +1820,27 @@ class EpicCashWallet extends CoinServiceAPI
                   Logging.instance
                       .log("TX_SLATE_ID_IS $txSlateId", level: LogLevel.Info);
                   final postToNode = await postSlateToNode(wallet, txSlateId);
-                  await deleteSlate(currentAddress.value,
-                      subscribeRequest['signature'] as String, slate as String);
+
+                  try {
+                    EpicCashResponse<bool> deleted = await deleteSlate(
+                        currentAddress.value,
+                        subscribeRequest['signature'] as String,
+                        slate as String);
+                    if (deleted.value == false) {
+                      throw Exception("failed to delete slate");
+                    }
+                  } catch (e, s) {
+                    Logging.instance.log(
+                        "processAllSlates exception from deleteSlate 4/4: $e $s",
+                        level: LogLevel.Error);
+                    return EpicCashResponse(
+                      exception: EpicCashException(
+                        "$e $s",
+                        EpicCashExceptionType.generic,
+                      ),
+                    );
+                  }
+
                   Logging.instance.log("POST_SLATE_RESPONSE $postToNode",
                       level: LogLevel.Info);
                   //Post Slate to Node
