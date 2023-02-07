@@ -17,6 +17,7 @@ import 'package:stackwallet/models/node_model.dart';
 import 'package:stackwallet/models/paymint/fee_object_model.dart';
 import 'package:stackwallet/pages/settings_views/global_settings_view/manage_nodes_views/add_edit_node_view.dart';
 import 'package:stackwallet/services/coins/coin_service.dart';
+import 'package:stackwallet/services/coins/epiccash/epiccash_response.dart';
 import 'package:stackwallet/services/event_bus/events/global/blocks_remaining_event.dart';
 import 'package:stackwallet/services/event_bus/events/global/node_connection_status_changed_event.dart';
 import 'package:stackwallet/services/event_bus/events/global/refresh_percent_changed_event.dart';
@@ -354,7 +355,9 @@ Future<bool> postSlate(String receiveAddress, String slate) async {
   }
 }
 
-Future<dynamic> getSlates(String receiveAddress, String signature) async {
+// TODO make EpicCashSlate type
+Future<EpicCashResponse<List<dynamic>>> getSlates(
+    String receiveAddress, String signature) async {
   Logging.instance.log("getslates", level: LogLevel.Info);
   final Client client = Client();
   try {
@@ -376,13 +379,18 @@ Future<dynamic> getSlates(String receiveAddress, String signature) async {
     Logging.instance.log(epicpost.body.toString(), level: LogLevel.Info);
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return response['slates'];
+      return EpicCashResponse(value: response['slates']);
     } else {
-      return response['error'];
+      throw Exception("${response['error']}");
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Error);
-    return 'Error $e $s';
+    Logging.instance.log("getSlates exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
@@ -1607,11 +1615,19 @@ class EpicCashWallet extends CoinServiceAPI
             level: LogLevel.Info);
       });
       // TODO, once server adds signature, give this signature to the getSlates method.
-      Logging.instance
-          .log(subscribeRequest['signature'], level: LogLevel.Info); //
-      final unprocessedSlates = await getSlates(
-          currentAddress.value, subscribeRequest['signature'] as String);
-      if (unprocessedSlates == null || unprocessedSlates is! List) {
+      Logging.instance.log(subscribeRequest['signature'], level: LogLevel.Info);
+      // TODO make EpicCashSlate model
+      List<dynamic> unprocessedSlates = [];
+      try {
+        final EpicCashResponse<List<dynamic>> newSlates = await getSlates(
+            currentAddress.value, subscribeRequest['signature'] as String);
+        unprocessedSlates = newSlates.value ?? [];
+      } catch (e, s) {
+        Logging.instance
+            .log("processAllSlates exception: $e $s", level: LogLevel.Error);
+      }
+
+      if (unprocessedSlates.isEmpty) {
         Logging.instance.log(
             "index $currentReceivingIndex at ${await currentReceivingAddress} does not have any slates",
             level: LogLevel.Info);
@@ -1620,7 +1636,7 @@ class EpicCashWallet extends CoinServiceAPI
       for (var slate in unprocessedSlates) {
         final encoded = jsonEncode([slate]);
         Logging.instance
-            .log("Received Slates is $encoded", level: LogLevel.Info);
+            .log("Processing received slate $encoded", level: LogLevel.Info);
 
         //Decrypt Slates
         dynamic slates;
