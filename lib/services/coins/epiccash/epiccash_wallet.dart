@@ -472,7 +472,7 @@ Future<EpicCashResponse<List<dynamic>>> getCancels(
   }
 }
 
-Future<dynamic> deleteCancels(
+Future<EpicCashResponse<bool>> deleteCancels(
     String receiveAddress, String? signature, String slate) async {
   Logging.instance.log("deleteCancels", level: LogLevel.Info);
   final Client client = Client();
@@ -497,13 +497,19 @@ Future<dynamic> deleteCancels(
 
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return true;
+      return EpicCashResponse(value: true);
     } else {
-      return false;
+      return EpicCashResponse(value: false);
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Error);
-    return 'Error $e $s';
+    Logging.instance
+        .log("deleteCancels exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
@@ -1776,7 +1782,7 @@ class EpicCashWallet extends CoinServiceAPI
     return true;
   }
 
-  Future<bool> processAllCancels() async {
+  Future<EpicCashResponse<bool>> processAllCancels() async {
     Logging.instance.log("processAllCancels", level: LogLevel.Info);
     final wallet = await _secureStore.read(key: '${_walletId}_wallet');
     final epicboxConfig =
@@ -1849,16 +1855,32 @@ class EpicCashWallet extends CoinServiceAPI
               .txidEqualTo(commitId)
               .findFirst();
           if ((tx?.isCancelled ?? false) == true) {
-            await deleteCancels(receiveAddressFromMap, signature, txSlateId);
+            try {
+              final EpicCashResponse<bool> deleted = await deleteCancels(
+                  receiveAddressFromMap, signature, txSlateId);
+              if (deleted.value == false) {
+                throw Exception("failed to delete cancels");
+              }
+            } catch (e, s) {
+              Logging.instance.log("processAllCancels exception: $e $s",
+                  level: LogLevel.Error);
+              return EpicCashResponse(
+                exception: EpicCashException(
+                  "$e $s",
+                  EpicCashExceptionType.generic,
+                ),
+              );
+            }
           }
         } catch (e, s) {
-          Logging.instance.log("$e, $s", level: LogLevel.Error);
-          return false;
+          Logging.instance
+              .log("processAllCancels exception: $e $s", level: LogLevel.Error);
+          return EpicCashResponse(value: false);
         }
       }
       continue;
     }
-    return true;
+    return EpicCashResponse(value: true);
   }
 
   /// Refreshes display data for the wallet
