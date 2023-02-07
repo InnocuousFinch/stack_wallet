@@ -323,7 +323,8 @@ Future<int> _getChainHeightWrapper(String config) async {
 
 const String EPICPOST_ADDRESS = 'https://epicpost.stackwallet.com';
 
-Future<bool> postSlate(String receiveAddress, String slate) async {
+Future<EpicCashResponse<bool>> postSlate(
+    String receiveAddress, String slate) async {
   Logging.instance.log("postSlate", level: LogLevel.Info);
   final Client client = Client();
   try {
@@ -347,13 +348,18 @@ Future<bool> postSlate(String receiveAddress, String slate) async {
 
     final response = jsonDecode(epicpost.body.toString());
     if (response['status'] == 'success') {
-      return true;
+      return EpicCashResponse(value: true);
     } else {
-      return false;
+      return EpicCashResponse(value: false);
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Error);
-    return false;
+    Logging.instance.log("postSlate exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
@@ -837,10 +843,16 @@ class EpicCashWallet extends CoinServiceAPI
         if (!(receiverAddress.startsWith("http://") ||
             receiverAddress.startsWith("https://"))) {
           final postSlateRequest = decodeData[1];
-          final postToServer = await postSlate(
-              txData['addresss'] as String, postSlateRequest as String);
-          Logging.instance
-              .log("POST_SLATE_IS $postToServer", level: LogLevel.Info);
+          try {
+            final postToServer = await postSlate(
+                txData['addresss'] as String, postSlateRequest as String);
+            Logging.instance
+                .log("POST_SLATE_IS $postToServer", level: LogLevel.Info);
+          } catch (e, s) {
+            Logging.instance
+                .log("confirmSend exception: $e $s", level: LogLevel.Error);
+            return "confirmSend exception: $e $s";
+          }
         }
 
         final txCreateResult = decodeData[0];
@@ -1781,8 +1793,27 @@ class EpicCashWallet extends CoinServiceAPI
                       epicboxConfig!,
                       decodedResponse[1] as String);
 
-                  final postSlateToServer =
-                      await postSlate(slateSender, encryptedSlate);
+                  try {
+                    final postSlateToServer =
+                        await postSlate(slateSender, encryptedSlate);
+
+                    if (postSlateToServer.value == false) {
+                      throw Exception("failed to post slate");
+                    }
+                    Logging.instance.log(
+                        "POST_SLATE_RESPONSE $postSlateToServer",
+                        level: LogLevel.Info);
+                  } catch (e, s) {
+                    Logging.instance.log(
+                        "processAllSlates exception from postSlate: $e $s",
+                        level: LogLevel.Error);
+                    return EpicCashResponse(
+                      exception: EpicCashException(
+                        "$e $s",
+                        EpicCashExceptionType.generic,
+                      ),
+                    );
+                  }
 
                   try {
                     EpicCashResponse<bool> deleted = await deleteSlate(
@@ -1803,9 +1834,6 @@ class EpicCashWallet extends CoinServiceAPI
                       ),
                     );
                   }
-
-                  Logging.instance.log("POST_SLATE_RESPONSE $postSlateToServer",
-                      level: LogLevel.Info);
                 } else {
                   //Finalise Slate
                   final processSlate =
