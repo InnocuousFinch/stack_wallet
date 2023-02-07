@@ -403,7 +403,7 @@ Future<EpicCashResponse<List<dynamic>>> getSlates(
   }
 }
 
-Future<bool> postCancel(String receiveAddress, String slateId,
+Future<EpicCashResponse<bool>> postCancel(String receiveAddress, String slateId,
     String? signature, String sendersAddress) async {
   Logging.instance.log("postCancel", level: LogLevel.Info);
   final Client client = Client();
@@ -428,13 +428,19 @@ Future<bool> postCancel(String receiveAddress, String slateId,
     Logging.instance.log(epicPost.body.toString(), level: LogLevel.Info);
     final response = jsonDecode(epicPost.body.toString());
     if (response['status'] == 'success') {
-      return true;
+      return EpicCashResponse(value: true);
     } else {
-      return false;
+      return EpicCashResponse(value: false);
     }
   } catch (e, s) {
-    Logging.instance.log("$e $s", level: LogLevel.Error);
-    return false;
+    Logging.instance.log("postCancel exception: $e $s", level: LogLevel.Error);
+    return EpicCashResponse(
+      value: false,
+      exception: EpicCashException(
+        "$e $s",
+        EpicCashExceptionType.generic,
+      ),
+    );
   }
 }
 
@@ -738,7 +744,14 @@ class EpicCashWallet extends CoinServiceAPI
       result = await cancelPendingTransaction(txSlateId);
       Logging.instance.log("result?: $result", level: LogLevel.Info);
       if (!(result.toLowerCase().contains("error"))) {
-        await postCancel(receiveAddress, txSlateId, signature, sendersAddress);
+        try {
+          /*EpicCashResponse<bool> postCancelled = */ await postCancel(
+              receiveAddress, txSlateId, signature, sendersAddress);
+        } catch (e, s) {
+          Logging.instance.log(
+              "cancelPendingTransactionAndPost exception from postCancel: $e $s",
+              level: LogLevel.Error);
+        }
       }
     } catch (e, s) {
       Logging.instance.log("$e, $s", level: LogLevel.Error);
