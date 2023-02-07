@@ -9,6 +9,7 @@ import 'package:stackwallet/models/node_model.dart';
 import 'package:stackwallet/notifications/show_flush_bar.dart';
 import 'package:stackwallet/providers/global/secure_store_provider.dart';
 import 'package:stackwallet/providers/providers.dart';
+import 'package:stackwallet/services/coins/epiccash/epiccash_response.dart';
 import 'package:stackwallet/utilities/assets.dart';
 import 'package:stackwallet/utilities/constants.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
@@ -70,13 +71,15 @@ class _AddEditNodeViewState extends ConsumerState<AddEditNodeView> {
     switch (coin) {
       case Coin.epicCash:
         try {
-          final data = await testEpicNodeConnection(formData);
+          final EpicCashResponse<NodeFormData?> _data =
+              await testEpicNodeConnection(formData);
+          dynamic data = _data.value;
 
           if (data != null) {
             testPassed = true;
-            ref.read(nodeFormDataProvider).host = data.host;
-            ref.read(nodeFormDataProvider).port = data.port;
-            ref.read(nodeFormDataProvider).useSSL = data.useSSL;
+            ref.read(nodeFormDataProvider).host = data.host as String?;
+            ref.read(nodeFormDataProvider).port = data.port as int?;
+            ref.read(nodeFormDataProvider).useSSL = data.useSSL as bool?;
           }
         } catch (e, s) {
           Logging.instance.log("$e\n$s", level: LogLevel.Warning);
