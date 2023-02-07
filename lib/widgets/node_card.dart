@@ -94,15 +94,13 @@ class _NodeCardState extends ConsumerState<NodeCard> {
     switch (widget.coin) {
       case Coin.epicCash:
         try {
-          EpicCashResponse<NodeFormData?> _testPassed =
-              await testEpicNodeConnection(
-            NodeFormData()
-              ..host = node.host
-              ..useSSL = node.useSSL
-              ..port = node.port,
-          );
-
-          testPassed = _testPassed.value != null;
+          testPassed = await testEpicNodeConnection(
+                NodeFormData()
+                  ..host = node.host
+                  ..useSSL = node.useSSL
+                  ..port = node.port,
+              ) !=
+              null;
         } catch (e, s) {
           Logging.instance.log("$e\n$s", level: LogLevel.Warning);
         }

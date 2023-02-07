@@ -8,7 +8,6 @@ import 'package:stackwallet/notifications/show_flush_bar.dart';
 import 'package:stackwallet/pages/settings_views/global_settings_view/manage_nodes_views/add_edit_node_view.dart';
 import 'package:stackwallet/providers/global/secure_store_provider.dart';
 import 'package:stackwallet/providers/providers.dart';
-import 'package:stackwallet/services/coins/epiccash/epiccash_response.dart';
 import 'package:stackwallet/utilities/assets.dart';
 import 'package:stackwallet/utilities/enums/coin_enum.dart';
 import 'package:stackwallet/utilities/flutter_secure_storage_interface.dart';
@@ -71,15 +70,13 @@ class _NodeDetailsViewState extends ConsumerState<NodeDetailsView> {
     switch (coin) {
       case Coin.epicCash:
         try {
-          EpicCashResponse<NodeFormData?> _testPassed =
-              await testEpicNodeConnection(
-            NodeFormData()
-              ..host = node!.host
-              ..useSSL = node.useSSL
-              ..port = node.port,
-          );
-
-          testPassed = _testPassed != null;
+          testPassed = await testEpicNodeConnection(
+                NodeFormData()
+                  ..host = node!.host
+                  ..useSSL = node.useSSL
+                  ..port = node.port,
+              ) !=
+              null;
         } catch (e, s) {
           Logging.instance.log("$e\n$s", level: LogLevel.Warning);
           testPassed = false;

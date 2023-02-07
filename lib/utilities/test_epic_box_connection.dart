@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:stackwallet/pages/settings_views/global_settings_view/manage_nodes_views/add_edit_node_view.dart';
-import 'package:stackwallet/services/coins/epiccash/epiccash_response.dart';
 import 'package:stackwallet/utilities/logger.dart';
 
 Future<bool> _testEpicBoxNodeConnection(Uri uri) async {
@@ -28,10 +27,9 @@ Future<bool> _testEpicBoxNodeConnection(Uri uri) async {
 }
 
 // returns node data with properly formatted host/url if successful, otherwise null
-Future<EpicCashResponse<NodeFormData?>> testEpicNodeConnection(
-    NodeFormData data) async {
+Future<NodeFormData?> testEpicNodeConnection(NodeFormData data) async {
   if (data.host == null || data.port == null || data.useSSL == null) {
-    return EpicCashResponse(value: null);
+    return null;
   }
   const String path_postfix = "/v1/version";
 
@@ -53,12 +51,12 @@ Future<EpicCashResponse<NodeFormData?>> testEpicNodeConnection(
 
   try {
     if (await _testEpicBoxNodeConnection(uri)) {
-      return EpicCashResponse(value: data);
+      return data;
     } else {
-      return EpicCashResponse(value: null);
+      return null;
     }
   } catch (e, s) {
     Logging.instance.log("$e\n$s", level: LogLevel.Warning);
-    return EpicCashResponse(value: null);
+    return null;
   }
 }

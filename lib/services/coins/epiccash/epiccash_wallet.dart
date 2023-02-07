@@ -999,17 +999,17 @@ class EpicCashWallet extends CoinServiceAPI
           refreshMutex = false;
           GlobalEventBus.instance.fire(
             NodeConnectionStatusChangedEvent(
-              NodeConnectionStatus.disconnected,
-              walletId,
-              coin,
-            ),
-          );
-          GlobalEventBus.instance.fire(
-            WalletSyncStatusChangedEvent(
-              WalletSyncStatus.unableToSync,
-              walletId,
-              coin,
-            ),
+            NodeConnectionStatus.disconnected,
+            walletId,
+            coin,
+          ),
+        );
+        GlobalEventBus.instance.fire(
+          WalletSyncStatusChangedEvent(
+            WalletSyncStatus.unableToSync,
+            walletId,
+            coin,
+          ),
           );
           return;
         }
@@ -2038,17 +2038,17 @@ class EpicCashWallet extends CoinServiceAPI
           refreshMutex = false;
           GlobalEventBus.instance.fire(
             NodeConnectionStatusChangedEvent(
-              NodeConnectionStatus.disconnected,
-              walletId,
-              coin,
-            ),
-          );
-          GlobalEventBus.instance.fire(
-            WalletSyncStatusChangedEvent(
-              WalletSyncStatus.unableToSync,
-              walletId,
-              coin,
-            ),
+            NodeConnectionStatus.disconnected,
+            walletId,
+            coin,
+          ),
+        );
+        GlobalEventBus.instance.fire(
+          WalletSyncStatusChangedEvent(
+            WalletSyncStatus.unableToSync,
+            walletId,
+            coin,
+          ),
           );
           return;
         }
@@ -2146,18 +2146,15 @@ class EpicCashWallet extends CoinServiceAPI
     try {
       // force unwrap optional as we want connection test to fail if wallet
       // wasn't initialized or epicbox node was set to null
-      EpicCashResponse<NodeFormData?> connectionTest =
-          await testEpicNodeConnection(
-        NodeFormData()
-          ..host = _epicNode!.host
-          ..useSSL = _epicNode!.useSSL
-          ..port = _epicNode!.port,
-      );
-
-      return connectionTest.value != null;
+      return await testEpicNodeConnection(
+            NodeFormData()
+              ..host = _epicNode!.host
+              ..useSSL = _epicNode!.useSSL
+              ..port = _epicNode!.port,
+          ) !=
+          null;
     } catch (e, s) {
-      Logging.instance.log("testNetworkConnection exception: $e\n$s",
-          level: LogLevel.Warning);
+      Logging.instance.log("$e\n$s", level: LogLevel.Warning);
       return false;
     }
   }
