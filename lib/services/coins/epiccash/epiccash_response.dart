@@ -11,8 +11,8 @@ class EpicCashException implements Exception {
   }
 }
 
-class EpicCashResponse<List> {
-  late final List? value;
+class EpicCashResponse<T> {
+  late final T? value;
   late final EpicCashException? exception;
 
   EpicCashResponse({this.value, this.exception});
