@@ -257,28 +257,6 @@ Future<String> deleteEpicWallet({
   required String walletId,
   required SecureStorageInterface secureStore,
 }) async {
-  // is this even needed for anything?
-  // String? config = await secureStore.read(key: '${walletId}_config');
-  // // TODO: why double check for iOS?
-  // if (Platform.isIOS) {
-  //   Directory appDir = await StackFileSystem.applicationRootDirectory();
-  //   // todo why double check for ios?
-  //   // if (Platform.isIOS) {
-  //   //   appDir = (await getLibraryDirectory());
-  //   // }
-  //   // if (Platform.isLinux) {
-  //   //   appDir = Directory("${appDir.path}/.stackwallet");
-  //   // }
-  //   final path = "${appDir.path}/epiccash";
-  //   final String name = walletId;
-  //
-  //   final walletDir = '$path/$name';
-  //   var editConfig = jsonDecode(config as String);
-  //
-  //   editConfig["wallet_dir"] = walletDir;
-  //   config = jsonEncode(editConfig);
-  // }
-
   final wallet = await secureStore.read(key: '${walletId}_wallet');
 
   if (wallet == null) {
