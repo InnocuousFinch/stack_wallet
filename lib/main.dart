@@ -58,6 +58,7 @@ import 'package:stackwallet/utilities/logger.dart';
 import 'package:stackwallet/utilities/stack_file_system.dart';
 import 'package:stackwallet/utilities/theme/color_theme.dart';
 import 'package:stackwallet/utilities/theme/dark_colors.dart';
+import 'package:stackwallet/utilities/theme/forest_colors.dart';
 import 'package:stackwallet/utilities/theme/fruit_sorbet_colors.dart';
 import 'package:stackwallet/utilities/theme/light_colors.dart';
 import 'package:stackwallet/utilities/theme/ocean_breeze_colors.dart';
@@ -105,12 +106,13 @@ void main() async {
       [LogSchema],
       directory: (await StackFileSystem.applicationIsarDirectory()).path,
       inspector: false,
+      maxSizeMiB: 512,
     );
     await Logging.instance.init(isar);
     await DebugService.instance.init(isar);
 
     // clear out all info logs on startup. No need to await and block
-    unawaited(DebugService.instance.purgeInfoLogs());
+    unawaited(DebugService.instance.deleteLogsOlderThan());
   }
 
   // Registering Transaction Model Adapters
@@ -294,6 +296,9 @@ class _MaterialAppWithThemeState extends ConsumerState<MaterialAppWithTheme>
           await ref.read(prefsChangeNotifierProvider).isExternalCallsSet()) {
         if (Constants.enableExchange) {
           await ExchangeDataLoadingService.instance.init();
+          await ExchangeDataLoadingService.instance.setCurrenciesIfEmpty(
+            ref.read(exchangeFormStateProvider),
+          );
           unawaited(ExchangeDataLoadingService.instance.loadAll());
         }
         // if (Constants.enableBuy) {
@@ -343,6 +348,9 @@ class _MaterialAppWithThemeState extends ConsumerState<MaterialAppWithTheme>
         break;
       case "fruitSorbet":
         colorTheme = FruitSorbetColors();
+        break;
+      case "forest":
+        colorTheme = ForestColors();
         break;
       case "light":
       default:
